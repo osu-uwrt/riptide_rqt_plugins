@@ -1,0 +1,25 @@
+<?xml version="1.0"?>
+<package format="2">
+  <name>riptide_rqt_plugins</name>
+  <version>0.0.1</version>
+  <description>RQT Plugins for Riptide specific features</description>
+
+  <author>Robert Pafford</author>
+  <maintainer email="osu.uwrt@gmail.com">OSU UWRT</maintainer>
+
+  <license>BSD</license>
+
+  <url type="repository">https://github.com/osu-uwrt/riptide_rqt_plugins</url>
+
+  <buildtool_depend>catkin</buildtool_depend>
+  <build_export_depend>rospy</build_export_depend>
+  <build_export_depend>rqt_gui</build_export_depend>
+  <build_export_depend>rqt_gui_py</build_export_depend>
+  <exec_depend>rospy</exec_depend>
+  <exec_depend>rqt_gui</exec_depend>
+  <exec_depend>rqt_gui_py</exec_depend>
+
+  <export>
+    <rqt_gui plugin="${prefix}/plugin.xml"/>
+  </export>
+</package>
