@@ -5,8 +5,8 @@ import roslaunch
 import rosnode
 
 from python_qt_binding import loadUi
-from python_qt_binding.QtWidgets import QWidget, QLabel, QPushButton, QComboBox, QTextEdit
-from python_qt_binding.QtCore import Slot
+from python_qt_binding.QtWidgets import QWidget, QLabel, QPushButton, QComboBox, QTextEdit, QMessageBox, QAbstractButton
+from python_qt_binding.QtCore import Slot, pyqtSlot
 
 class PS3TeleopWidget(QWidget):
     # Constant Vars
@@ -14,6 +14,8 @@ class PS3TeleopWidget(QWidget):
     instructions_ui_file = os.path.join(rospkg.RosPack().get_path('riptide_rqt_plugins'), 'resource', 'TextWindow.ui')
     instructions_html_file = os.path.join(rospkg.RosPack().get_path('riptide_rqt_plugins'), 'resource', 'TeleopInstructions.html')
 
+    confirm_close = None
+    confirm_close_open = False
     instructions_window = None
     launch = None
     process = None
@@ -24,10 +26,11 @@ class PS3TeleopWidget(QWidget):
 
     selected_joystick_device = ""
 
-    def __init__(self, namespace):
+    def __init__(self, namespace, parent_plugin):
         super(PS3TeleopWidget, self).__init__()
 
         self.namespace = namespace
+        self._parent_plugin = parent_plugin
         self.available_joysticks = []
         self.prev_input_list = []
 
@@ -84,16 +87,38 @@ class PS3TeleopWidget(QWidget):
         joy_node = roslaunch.core.Node(package='joy', node_type='joy_node', name='joy_node_rqt',
                                        args='_dev:='+self.selected_joystick_device, output='screen')
 
-        print("Launching Process")
         self.process = self.launch.launch(joy_node)
-        #self.process.start()
     
+    def _confim_stop_btn_callback(self, i):
+        self.confirm_close_open = False
+        if i.text() == "&Yes":
+            if self.process is not None and self.process.is_alive():
+                self.process.stop()
+                self.process = None
+
+    def _confirm_stop_close_callback(self, event):
+        self.confirm_close_open = False
+
     @Slot()
     def _stop_callback(self):
+        # Check to make sure that the joystick controller isn't still enabled
+        teleop_node_name = self.namespace + "/ps3_teleop"
         self._stop_button.setEnabled(False)
-        if self.process is not None and self.process.is_alive():
-            self.process.stop()
-            self.process = None
+        if self._parent_plugin._angular_target_data[2] == teleop_node_name or self._parent_plugin._linear_target_data[2] == teleop_node_name:
+            if self.confirm_close is None:
+                self.confirm_close = QMessageBox()
+                self.confirm_close.setIcon(QMessageBox.Critical)
+                self.confirm_close.setText("The PS3 teleop node still appears to be enabled.\nStopping the joystick node while teleop is still running does not disable the controller!\nOnly stop if you are sure you want to do this!\n\nDo you still want to stop the joystick node?")
+                self.confirm_close.setWindowTitle("Are you sure?")
+                self.confirm_close.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+                self.confirm_close.buttonClicked.connect(self._confim_stop_btn_callback)
+                self.confirm_close.closeEvent = self._confirm_stop_close_callback
+            self.confirm_close_open = True
+            self.confirm_close.show()
+        else:
+            if self.process is not None and self.process.is_alive():
+                self.process.stop()
+                self.process = None
 
     @Slot()
     def _instructions_callback(self):
@@ -128,6 +153,10 @@ class PS3TeleopWidget(QWidget):
             self.instructions_window.destroy(destroyWindow = True)
             self.instructions_window = None
 
+        if self.confirm_close is not None:
+            self.confirm_close.destroy(destroyWindow=True)
+            self.confirm_close = None
+
     def tick(self):
         # Read states of nodes
         teleop_node_running = (self.namespace + "/ps3_teleop") in rosnode.get_node_names()
@@ -142,7 +171,7 @@ class PS3TeleopWidget(QWidget):
         if not process_running and teleop_node_running and self._joystick_selector.isEnabled():
             self._start_button.setEnabled(True)
         
-        if process_running:
+        if process_running and not self.confirm_close_open:
             self._stop_button.setEnabled(True)
         else:
             self._stop_button.setEnabled(False)

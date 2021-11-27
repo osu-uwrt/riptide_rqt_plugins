@@ -47,7 +47,7 @@ class ControllersWidget(QWidget):
         self.add_action("Calibrate Drag", "calibrate_drag", riptide_controllers.msg.CalibrateDragAction, has_results=True)
         self.add_action("Thruster Test", "thruster_test", riptide_controllers.msg.ThrusterTestAction, has_results=False)
 
-        self._teleop_widget = PS3TeleopWidget(self.namespace)
+        self._teleop_widget = PS3TeleopWidget(self.namespace, self)
         self._teleop_widget_layout = self.findChild(QVBoxLayout, "teleopControlLayout")
         self._teleop_widget_layout.addWidget(self._teleop_widget)
 
