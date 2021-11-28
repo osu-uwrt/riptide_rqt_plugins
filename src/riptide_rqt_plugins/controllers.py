@@ -111,8 +111,8 @@ class ControllersWidget(QWidget):
         self._angular_target_label.setText("Loading")
         self._angular_target_label.setToolTip("")
 
-        self._linear_target_data = ["Position:", "No Data", "", None]
-        self._angular_target_data = ["Orientation:", "No Data", "", None]
+        self._linear_target_data = ["Position:", "No Data", None, None]
+        self._angular_target_data = ["Orientation:", "No Data", None, None]
 
         self._steady_light.setStyleSheet(self.LIGHT_STYLE_OFF)
         self._conflicting_publisher_light.setStyleSheet(self.LIGHT_STYLE_OFF)
@@ -178,33 +178,33 @@ class ControllersWidget(QWidget):
         self._track_publisher(msg._connection_header['callerid'])
         self._linear_target_data[0] = "Position:"
         self._linear_target_data[1] = "({0:.2f}, {1:.2f}, {2:.2f})".format(msg.x, msg.y, msg.z)
-        self._linear_target_data[2] = "Origin: " + msg._connection_header['callerid']
+        self._linear_target_data[2] = msg._connection_header['callerid']
         self._linear_target_data[3] = rospy.get_rostime()
 
     def _orientation_callback(self, msg):
         self._track_publisher(msg._connection_header['callerid'])
         self._angular_target_data[0] = "Orientation:"
         self._angular_target_data[1] = "({0:.2f}, {1:.2f}, {2:.2f}. {3:.2f})".format(msg.x, msg.y, msg.z, msg.w)
-        self._angular_target_data[2] = "Origin: " + msg._connection_header['callerid']
+        self._angular_target_data[2] = msg._connection_header['callerid']
         self._angular_target_data[3] = rospy.get_rostime()
 
     def _linear_velocity_callback(self, msg):
         self._track_publisher(msg._connection_header['callerid'])
         self._linear_target_data[0] = "Lin Vel:"
         self._linear_target_data[1] = "({0:.2f}, {1:.2f}, {2:.2f})".format(msg.x, msg.y, msg.z)
-        self._linear_target_data[2] = "Origin: " + msg._connection_header['callerid']
+        self._linear_target_data[2] = msg._connection_header['callerid']
         self._linear_target_data[3] = rospy.get_rostime()
 
     def _angular_velocity_callback(self, msg):
         self._track_publisher(msg._connection_header['callerid'])
         self._angular_target_data[0] = "Ang Vel:"
         self._angular_target_data[1] = "({0:.2f}, {1:.2f}, {2:.2f})".format(msg.x, msg.y, msg.z)
-        self._angular_target_data[2] = "Origin: " + msg._connection_header['callerid']
+        self._angular_target_data[2] = msg._connection_header['callerid']
         self._angular_target_data[3] = rospy.get_rostime()
 
     def _off_callback(self, msg):
-        self._linear_target_data = ["Position:", "No Data", "", None]
-        self._angular_target_data = ["Orientation:", "No Data", "", None]
+        self._linear_target_data = ["Position:", "No Data", None, None]
+        self._angular_target_data = ["Orientation:", "No Data", None, None]
 
     def _steady_callback(self, msg):
         self.steady_light_data = msg.data
@@ -276,18 +276,24 @@ class ControllersWidget(QWidget):
         # Update linear and angular targets for the controller
         current_time = rospy.get_rostime()
         linear_time_diff = ""
+        linear_origin_node = ""
         if self._linear_target_data[3] is not None:
             linear_time_diff = " - {0} Secs. Ago".format((current_time - self._linear_target_data[3]).secs)
+        if self._linear_target_data[2] is not None:
+            linear_origin_node = "Origin: " + self._linear_target_data[2]
         self._linear_target_title.setText(self._linear_target_data[0])
         self._linear_target_label.setText(self._linear_target_data[1])
-        self._linear_target_label.setToolTip(self._linear_target_data[2] + linear_time_diff)
+        self._linear_target_label.setToolTip(linear_origin_node + linear_time_diff)
 
         angular_time_diff = ""
+        angular_origin_node = ""
         if self._angular_target_data[3] is not None:
             angular_time_diff = " - {0} Secs. Ago".format((current_time - self._angular_target_data[3]).secs)
+        if self._angular_target_data[2] is not None:
+            angular_origin_node = "Origin: " + self._angular_target_data[2]
         self._angular_target_title.setText(self._angular_target_data[0])
         self._angular_target_label.setText(self._angular_target_data[1])
-        self._angular_target_label.setToolTip(self._angular_target_data[2] + angular_time_diff)
+        self._angular_target_label.setToolTip(angular_origin_node + angular_time_diff)
 
         # Update the status "lights"
         if self.steady_light_data:
