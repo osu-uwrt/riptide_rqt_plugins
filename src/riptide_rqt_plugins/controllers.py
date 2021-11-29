@@ -6,6 +6,8 @@ import threading
 
 from geometry_msgs.msg import Quaternion, Vector3
 from std_msgs.msg import Empty, Bool
+from nav_msgs.msg import Odometry
+import riptide_controllers.msg
 
 from qt_gui.plugin import Plugin
 from python_qt_binding import loadUi
@@ -14,7 +16,6 @@ from python_qt_binding.QtCore import QTimer, Slot
 
 from .action_widget import ActionWidget
 from .joystick_widget import PS3TeleopWidget
-import riptide_controllers.msg
 
 class ControllersWidget(QWidget):
     ui_file = os.path.join(rospkg.RosPack().get_path('riptide_rqt_plugins'), 'resource', 'ControllersPlugin.ui')
@@ -27,6 +28,8 @@ class ControllersWidget(QWidget):
     stopping = False
     steady_light_data = False
     conflicting_publisher_light_data = False
+
+    last_odom_message = None
 
     CONFLICT_EXPIRATION_TIME = rospy.Duration(30.0)
     CONFLICT_SEQUENCE_TIME = rospy.Duration(10.0)
@@ -75,6 +78,11 @@ class ControllersWidget(QWidget):
         self._orientation_z = self.findChild(QDoubleSpinBox, "orientationZValue")
         self._orientation_w = self.findChild(QDoubleSpinBox, "orientationWValue")
 
+        self._load_current_position = self.findChild(QPushButton, "loadCurrentPosition")
+        self._load_current_orientation = self.findChild(QPushButton, "loadCurrentOrientation")
+        self._load_current_position.clicked.connect(self._load_current_position_callback)
+        self._load_current_orientation.clicked.connect(self._load_current_orientation_callback)
+
         self._publish_position = self.findChild(QPushButton, "publishPositionButton")
         self._stop_controller = self.findChild(QPushButton, "stopControllerButton")
         self._publish_position.clicked.connect(self._publish_position_callback)
@@ -98,6 +106,10 @@ class ControllersWidget(QWidget):
     def _reset_state(self):
         # Resets the state of the ui to loading
         # This is the default state after any reload, such as loading or changing namespace
+
+        self._load_current_position.setEnabled(False)
+        self._load_current_orientation.setEnabled(False)
+        self.last_odom_message = None
 
         self._publish_position.setEnabled(False)
         self._stop_controller.setEnabled(False)
@@ -130,6 +142,7 @@ class ControllersWidget(QWidget):
         self._orientation_pub = rospy.Publisher(self.namespace + "/orientation", Quaternion, queue_size=1)
         self._off_pub = rospy.Publisher(self.namespace + "/off", Empty, queue_size=1)
 
+        self._odom_sub = rospy.Subscriber(self.namespace + "/odometry/filtered", Odometry, self._odom_callback, queue_size=1)
         self._position_sub = rospy.Subscriber(self.namespace + "/position", Vector3, self._position_callback, queue_size=1)
         self._orientation_sub = rospy.Subscriber(self.namespace + "/orientation", Quaternion, self._orientation_callback, queue_size=1)
         self._linear_velocity_sub = rospy.Subscriber(self.namespace + "/linear_velocity", Vector3, self._linear_velocity_callback, queue_size=1)
@@ -142,12 +155,16 @@ class ControllersWidget(QWidget):
         self._orientation_pub.unregister()
         self._off_pub.unregister()
 
+        self._odom_sub.unregister()
         self._position_sub.unregister()
         self._orientation_sub.unregister()
         self._linear_velocity_sub.unregister()
         self._angular_velocity_sub.unregister()
         self._off_sub.unregister()
         self._steady_sub.unregister()
+
+    def _odom_callback(self, msg: Odometry):
+        self.last_odom_message = msg
 
     def _track_publisher(self, node):
         with self._competing_publishing_lock:
@@ -231,6 +248,21 @@ class ControllersWidget(QWidget):
             self.update_namespace()
 
     @Slot()
+    def _load_current_position_callback(self):
+        if self.last_odom_message is not None:
+            self._position_x.setValue(self.last_odom_message.pose.pose.position.x)
+            self._position_y.setValue(self.last_odom_message.pose.pose.position.y)
+            self._position_z.setValue(self.last_odom_message.pose.pose.position.z)
+
+    @Slot()
+    def _load_current_orientation_callback(self):
+        if self.last_odom_message is not None:
+            self._orientation_w.setValue(self.last_odom_message.pose.pose.orientation.w)
+            self._orientation_x.setValue(self.last_odom_message.pose.pose.orientation.x)
+            self._orientation_y.setValue(self.last_odom_message.pose.pose.orientation.y)
+            self._orientation_z.setValue(self.last_odom_message.pose.pose.orientation.z)
+
+    @Slot()
     def _publish_position_callback(self):
         self._position_pub.publish(Vector3(x=self._position_x.value(), y=self._position_y.value(), z=self._position_z.value()))
         self._orientation_pub.publish(Quaternion(x=self._orientation_x.value(), y=self._orientation_y.value(), z=self._orientation_z.value(), w=self._orientation_w.value()))
@@ -270,6 +302,8 @@ class ControllersWidget(QWidget):
 
         # Update button status
         # We are subscribing to these topics as well, so there must be another subscriber for controllers to be present
+        self._load_current_position.setEnabled(self.last_odom_message is not None)
+        self._load_current_orientation.setEnabled(self.last_odom_message is not None)
         self._publish_position.setEnabled((self._position_pub.get_num_connections() > 1) and (self._orientation_pub.get_num_connections() > 1))
         self._stop_controller.setEnabled(self._off_pub.get_num_connections() > 1)
 
