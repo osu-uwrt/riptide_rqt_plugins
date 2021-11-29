@@ -133,7 +133,7 @@ class ControllersWidget(QWidget):
         self._position_sub = rospy.Subscriber(self.namespace + "/position", Vector3, self._position_callback, queue_size=1)
         self._orientation_sub = rospy.Subscriber(self.namespace + "/orientation", Quaternion, self._orientation_callback, queue_size=1)
         self._linear_velocity_sub = rospy.Subscriber(self.namespace + "/linear_velocity", Vector3, self._linear_velocity_callback, queue_size=1)
-        self._angular_velocity_sub = rospy.Subscriber(self.namespace + "/angular_velocity", Vector3, self._linear_velocity_callback, queue_size=1)
+        self._angular_velocity_sub = rospy.Subscriber(self.namespace + "/angular_velocity", Vector3, self._angular_velocity_callback, queue_size=1)
         self._off_sub = rospy.Subscriber(self.namespace + "/off", Empty, self._off_callback, queue_size=1)
         self._steady_sub = rospy.Subscriber(self.namespace + "/steady", Bool, self._steady_callback, queue_size=1)
 
