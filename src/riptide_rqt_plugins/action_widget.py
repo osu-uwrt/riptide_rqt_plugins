@@ -14,6 +14,7 @@ class ActionWidget(QWidget):
     results_ui_file = os.path.join(rospkg.RosPack().get_path('riptide_rqt_plugins'), 'resource', 'TextWindow.ui')
 
     # Negative numbers for states, since actionserver uses non-negative numbers for status
+    STATE_BUSY = -3
     STATE_UNINITIALIZED = -2
     STATE_LOADING = -1
 
@@ -62,7 +63,7 @@ class ActionWidget(QWidget):
         actions_layout.addWidget(self)
 
     ########################################
-    # Callback Functions
+    # Private Functions
     ########################################
 
     def _init_topics(self):
@@ -71,6 +72,18 @@ class ActionWidget(QWidget):
 
         self._results_btn.setEnabled(False)
         self.last_result = None
+
+    def _action_server_available(self):
+        try:
+           return self._action_client.wait_for_server(rospy.Duration(-0.001))
+        except TypeError:
+            # If rqt starts <1ms after ros the first call might fail since the duration will be negative
+            # But, duration of 0 means block until server is found, so a negative number is needed to never block
+            return False
+
+    ########################################
+    # Callback Functions
+    ########################################
 
     def _transition_callback(self, client_goal_handle):
         self.last_result = client_goal_handle.get_result()
@@ -123,13 +136,7 @@ class ActionWidget(QWidget):
         
         self._results_btn.setEnabled(self.last_result is not None)
 
-        
-        try:
-           server_available = self._action_client.wait_for_server(rospy.Duration(-0.001))
-        except TypeError:
-            # If rqt starts <1ms after ros the first call might fail since the duration will be negative
-            # But, duration of 0 means block until server is found, so a negative number is needed to never block
-            server_available = False
+        server_available = self._action_server_available()
 
         # Get server connection status immediately
         if server_available:
@@ -185,6 +192,13 @@ class ActionWidget(QWidget):
                 self._action_status.setText("(Loading)" + count_string)
                 self._action_status.setStyleSheet(ActionWidget.STYLE_NORMAL)
                 self._action_status.setToolTip("State is loading. The status of action is unknown")
+
+                self._start_btn.setEnabled(False)
+                self._cancel_btn.setEnabled(False)
+            elif state == ActionWidget.STATE_BUSY:
+                self._action_status.setText("(Busy)" + count_string)
+                self._action_status.setStyleSheet(ActionWidget.STYLE_NORMAL)
+                self._action_status.setToolTip("The actionserver is busy with other requests at the time")
 
                 self._start_btn.setEnabled(False)
                 self._cancel_btn.setEnabled(False)
