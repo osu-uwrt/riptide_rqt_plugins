@@ -28,6 +28,7 @@ class ControllersWidget(QWidget):
     stopping = False
     steady_light_data = False
     conflicting_publisher_light_data = False
+    kill_switch_killed = False
 
     last_odom_message = None
 
@@ -89,8 +90,7 @@ class ControllersWidget(QWidget):
         self._stop_controller.clicked.connect(self._stop_controller_callback)
 
         self._software_kill = self.findChild(QPushButton, "softwareKillButton")
-        self._software_kill.setVisible(False)
-        # TODO: Implement software kill button    
+        self._software_kill.clicked.connect(self._software_kill_callback)   
 
         # Add lock for competing publishers since multiple publishers share the code to check
         # if there's a competing publisher and race conditions occur without it
@@ -115,6 +115,9 @@ class ControllersWidget(QWidget):
         self._stop_controller.setEnabled(False)
         self._software_kill.setEnabled(False)
         self._software_kill.setChecked(False)
+
+        self.kill_switch_killed = False
+        self._software_kill.setText("Kill Thrusters")
 
         self._linear_target_title.setText("Position:")
         self._linear_target_label.setText("Loading")
@@ -141,6 +144,7 @@ class ControllersWidget(QWidget):
         self._position_pub = rospy.Publisher(self.namespace + "/position", Vector3, queue_size=1)
         self._orientation_pub = rospy.Publisher(self.namespace + "/orientation", Quaternion, queue_size=1)
         self._off_pub = rospy.Publisher(self.namespace + "/off", Empty, queue_size=1)
+        self._software_kill_pub = rospy.Publisher(self.namespace + "/control/software_kill", Bool, latch=True, queue_size=1)
 
         self._odom_sub = rospy.Subscriber(self.namespace + "/odometry/filtered", Odometry, self._odom_callback, queue_size=1)
         self._position_sub = rospy.Subscriber(self.namespace + "/position", Vector3, self._position_callback, queue_size=1)
@@ -149,11 +153,16 @@ class ControllersWidget(QWidget):
         self._angular_velocity_sub = rospy.Subscriber(self.namespace + "/angular_velocity", Vector3, self._angular_velocity_callback, queue_size=1)
         self._off_sub = rospy.Subscriber(self.namespace + "/off", Empty, self._off_callback, queue_size=1)
         self._steady_sub = rospy.Subscriber(self.namespace + "/steady", Bool, self._steady_callback, queue_size=1)
+        self._kill_switch_sub = rospy.Subscriber(self.namespace + "/state/kill_switch", Bool, self._kill_switch_callback, queue_size=1)
 
     def _cleanup_topics(self):
+        # Disable software kill in the event it was enabled
+        self._software_kill_pub.publish(False)
+
         self._position_pub.unregister()
         self._orientation_pub.unregister()
         self._off_pub.unregister()
+        self._software_kill_pub.unregister()
 
         self._odom_sub.unregister()
         self._position_sub.unregister()
@@ -162,6 +171,7 @@ class ControllersWidget(QWidget):
         self._angular_velocity_sub.unregister()
         self._off_sub.unregister()
         self._steady_sub.unregister()
+        self._kill_switch_sub.unregister()
 
     def _odom_callback(self, msg: Odometry):
         self.last_odom_message = msg
@@ -226,6 +236,9 @@ class ControllersWidget(QWidget):
     def _steady_callback(self, msg):
         self.steady_light_data = msg.data
 
+    def _kill_switch_callback(self, msg):
+        self.kill_switch_killed = not msg.data
+
     ########################################
     # Button Callbacks
     ########################################
@@ -246,6 +259,10 @@ class ControllersWidget(QWidget):
         if self.namespace != namespace:
             self.namespace = namespace
             self.update_namespace()
+
+    @Slot()
+    def _software_kill_callback(self):
+        self._software_kill_pub.publish(self._software_kill.isChecked())
 
     @Slot()
     def _load_current_position_callback(self):
@@ -306,6 +323,12 @@ class ControllersWidget(QWidget):
         self._load_current_orientation.setEnabled(self.last_odom_message is not None)
         self._publish_position.setEnabled((self._position_pub.get_num_connections() > 1) and (self._orientation_pub.get_num_connections() > 1))
         self._stop_controller.setEnabled(self._off_pub.get_num_connections() > 1)
+
+        self._software_kill.setEnabled(self._software_kill_pub.get_num_connections() > 0)
+        kill_switch_text = ""
+        if self.kill_switch_killed:
+            kill_switch_text = " (Killed)"
+        self._software_kill.setText("Kill Thrusters" + kill_switch_text)
 
         # Update linear and angular targets for the controller
         current_time = rospy.get_rostime()
