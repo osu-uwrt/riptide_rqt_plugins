@@ -11,7 +11,7 @@ import riptide_controllers.msg
 
 from qt_gui.plugin import Plugin
 from python_qt_binding import loadUi
-from python_qt_binding.QtWidgets import QWidget, QVBoxLayout, QLineEdit, QPushButton, QDoubleSpinBox, QToolButton, QLabel
+from python_qt_binding.QtWidgets import QMessageBox, QWidget, QVBoxLayout, QLineEdit, QPushButton, QDoubleSpinBox, QToolButton, QLabel
 from python_qt_binding.QtCore import QTimer, Slot
 
 from .action_widget import ActionWidget
@@ -29,6 +29,8 @@ class ControllersWidget(QWidget):
     steady_light_data = False
     conflicting_publisher_light_data = False
     kill_switch_killed = False
+
+    confirm_unkill = None
 
     last_odom_message = None
 
@@ -260,9 +262,30 @@ class ControllersWidget(QWidget):
             self.namespace = namespace
             self.update_namespace()
 
+    def _confim_unkill_btn_callback(self, i):
+        if i.text() == "&Yes":
+            self._software_kill_pub.publish(False)
+            self._software_kill.setChecked(False)
+
     @Slot()
     def _software_kill_callback(self):
-        self._software_kill_pub.publish(self._software_kill.isChecked())
+        if self._software_kill.isChecked():
+            self._linear_target_data = ["Position:", "No Data", None, None]
+            self._angular_target_data = ["Orientation:", "No Data", None, None]
+            self._software_kill_pub.publish(True)
+        else:
+            if self._linear_target_data[3] is not None or self._angular_target_data[3] is not None:
+                if self.confirm_unkill is None:
+                    self.confirm_unkill = QMessageBox()
+                    self.confirm_unkill.setIcon(QMessageBox.Critical)
+                    self.confirm_unkill.setText("The robot had position data published after the software kill was executed!\nIf higher level code is still publishing position when the robot is unkilled, it will unexpectedly move.\nIt is recommended that you press Stop Controllers to ensure nothing is still publishing.\n\nAre you STILL sure you want to unkill the robot?")
+                    self.confirm_unkill.setWindowTitle("Are you sure?")
+                    self.confirm_unkill.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+                    self.confirm_unkill.buttonClicked.connect(self._confim_unkill_btn_callback)
+                self.confirm_unkill.show()
+                self._software_kill.setChecked(True)
+            else:
+                self._software_kill_pub.publish(False)
 
     @Slot()
     def _load_current_position_callback(self):
@@ -307,6 +330,10 @@ class ControllersWidget(QWidget):
 
         for action in self._actions:
             action.cleanup_topics()
+
+        if self.confirm_unkill is not None:
+            self.confirm_unkill.destroy(destroyWindow=True)
+            self.confirm_unkill = None
 
     @Slot()
     def timer_tick(self):
