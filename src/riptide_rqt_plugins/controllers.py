@@ -1,5 +1,8 @@
+from ament_index_python import get_resource
+from rclpy.duration import Duration
+from rclpy.qos import QoSDurabilityPolicy, QoSHistoryPolicy, QoSReliabilityPolicy
+from rclpy.qos import QoSProfile
 import os
-import rospy
 import rospkg
 
 import threading
@@ -7,7 +10,7 @@ import threading
 from geometry_msgs.msg import Quaternion, Vector3
 from std_msgs.msg import Empty, Bool
 from nav_msgs.msg import Odometry
-import riptide_controllers.msg
+# import riptide_controllers.msg
 
 from qt_gui.plugin import Plugin
 from python_qt_binding import loadUi
@@ -18,7 +21,6 @@ from .action_widget import ActionWidget
 from .joystick_widget import PS3TeleopWidget
 
 class ControllersWidget(QWidget):
-    ui_file = os.path.join(rospkg.RosPack().get_path('riptide_rqt_plugins'), 'resource', 'ControllersPlugin.ui')
     namespace = ""
 
     LIGHT_STYLE_OFF = "QLabel{ color: rgb(186, 189, 182) }"
@@ -34,14 +36,17 @@ class ControllersWidget(QWidget):
 
     last_odom_message = None
 
-    CONFLICT_EXPIRATION_TIME = rospy.Duration(30.0)
-    CONFLICT_SEQUENCE_TIME = rospy.Duration(10.0)
+    CONFLICT_EXPIRATION_TIME = Duration(seconds=30)
+    CONFLICT_SEQUENCE_TIME = Duration(seconds=10)
 
-    def __init__(self):
+    def __init__(self, node):
         super(ControllersWidget, self).__init__()
+        self._node = node
     
         # Load UI
-        loadUi(self.ui_file, self)
+        _, package_path = get_resource('packages', 'riptide_rqt_plugins')
+        ui_file = os.path.join(package_path, 'share', 'riptide_rqt_plugins', 'resource', 'ControllersPlugin.ui')
+        loadUi(ui_file, self)
         self.setObjectName('ControllersPluginUi')
 
         # Get all UI elements loaded into class and connected to callbacks
@@ -49,11 +54,11 @@ class ControllersWidget(QWidget):
         # Configure all actions to be used
         self._actions_layout = self.findChild(QVBoxLayout, "actionsVerticalLayout")
         self._actions = []
-        self.add_action("Calibrate Buoyancy", "calibrate_buoyancy", riptide_controllers.msg.CalibrateBuoyancyAction, has_results=True)
-        self.add_action("Calibrate Drag", "calibrate_drag", riptide_controllers.msg.CalibrateDragAction, has_results=True)
-        self.add_action("Thruster Test", "thruster_test", riptide_controllers.msg.ThrusterTestAction, has_results=False)
+        #self.add_action("Calibrate Buoyancy", "calibrate_buoyancy", riptide_controllers.msg.CalibrateBuoyancyAction, has_results=True)
+        #self.add_action("Calibrate Drag", "calibrate_drag", riptide_controllers.msg.CalibrateDragAction, has_results=True)
+        #self.add_action("Thruster Test", "thruster_test", riptide_controllers.msg.ThrusterTestAction, has_results=False)
 
-        self._teleop_widget = PS3TeleopWidget(self.namespace, self)
+        self._teleop_widget = PS3TeleopWidget(self.namespace, self, self._node)
         self._teleop_widget_layout = self.findChild(QVBoxLayout, "teleopControlLayout")
         self._teleop_widget_layout.addWidget(self._teleop_widget)
 
@@ -143,44 +148,50 @@ class ControllersWidget(QWidget):
     ########################################
 
     def _init_topics(self):
-        self._position_pub = rospy.Publisher(self.namespace + "/position", Vector3, queue_size=1)
-        self._orientation_pub = rospy.Publisher(self.namespace + "/orientation", Quaternion, queue_size=1)
-        self._off_pub = rospy.Publisher(self.namespace + "/off", Empty, queue_size=1)
-        self._software_kill_pub = rospy.Publisher(self.namespace + "/control/software_kill", Bool, latch=True, queue_size=1)
+        # TODO: Fix QOS Profiles
+        self._position_pub = self._node.create_publisher(Vector3, self.namespace + "/position", 1)
+        self._orientation_pub = self._node.create_publisher(Quaternion, self.namespace + "/orientation", 1)
+        self._off_pub = self._node.create_publisher(Empty, self.namespace + "/off", 1)
 
-        self._odom_sub = rospy.Subscriber(self.namespace + "/odometry/filtered", Odometry, self._odom_callback, queue_size=1)
-        self._position_sub = rospy.Subscriber(self.namespace + "/position", Vector3, self._position_callback, queue_size=1)
-        self._orientation_sub = rospy.Subscriber(self.namespace + "/orientation", Quaternion, self._orientation_callback, queue_size=1)
-        self._linear_velocity_sub = rospy.Subscriber(self.namespace + "/linear_velocity", Vector3, self._linear_velocity_callback, queue_size=1)
-        self._angular_velocity_sub = rospy.Subscriber(self.namespace + "/angular_velocity", Vector3, self._angular_velocity_callback, queue_size=1)
-        self._off_sub = rospy.Subscriber(self.namespace + "/off", Empty, self._off_callback, queue_size=1)
-        self._steady_sub = rospy.Subscriber(self.namespace + "/steady", Bool, self._steady_callback, queue_size=1)
-        self._kill_switch_sub = rospy.Subscriber(self.namespace + "/state/kill_switch", Bool, self._kill_switch_callback, queue_size=1)
+        software_kill_qos = QoSProfile(depth=1)
+        software_kill_qos.reliability = QoSReliabilityPolicy.RELIABLE
+        software_kill_qos.history = QoSHistoryPolicy.KEEP_LAST
+        software_kill_qos.durability = QoSDurabilityPolicy.TRANSIENT_LOCAL
+        self._software_kill_pub = self._node.create_publisher(Bool, self.namespace + "/control/software_kill", software_kill_qos)
+
+        self._odom_sub = self._node.create_subscription(Odometry, self.namespace + "/odometry/filtered", self._odom_callback, 1)
+        self._position_sub = self._node.create_subscription(Vector3, self.namespace + "/position", self._position_callback, 1)
+        self._orientation_sub = self._node.create_subscription(Quaternion, self.namespace + "/orientation", self._orientation_callback, 1)
+        self._linear_velocity_sub = self._node.create_subscription(Vector3, self.namespace + "/linear_velocity", self._linear_velocity_callback, 1)
+        self._angular_velocity_sub = self._node.create_subscription(Vector3, self.namespace + "/angular_velocity", self._angular_velocity_callback, 1)
+        self._off_sub = self._node.create_subscription(Empty, self.namespace + "/off", self._off_callback, 1)
+        self._steady_sub = self._node.create_subscription(Bool, self.namespace + "/steady", self._steady_callback, 1)
+        self._kill_switch_sub = self._node.create_subscription(Bool, self.namespace + "/state/kill_switch", self._kill_switch_callback, 1)
 
     def _cleanup_topics(self):
         # Disable software kill in the event it was enabled
-        self._software_kill_pub.publish(False)
+        self._software_kill_pub.publish(Bool(data=False))
 
-        self._position_pub.unregister()
-        self._orientation_pub.unregister()
-        self._off_pub.unregister()
-        self._software_kill_pub.unregister()
+        self._node.destroy_publisher(self._position_pub)
+        self._node.destroy_publisher(self._orientation_pub)
+        self._node.destroy_publisher(self._off_pub)
+        self._node.destroy_publisher(self._software_kill_pub)
 
-        self._odom_sub.unregister()
-        self._position_sub.unregister()
-        self._orientation_sub.unregister()
-        self._linear_velocity_sub.unregister()
-        self._angular_velocity_sub.unregister()
-        self._off_sub.unregister()
-        self._steady_sub.unregister()
-        self._kill_switch_sub.unregister()
+        self._node.destroy_subscription(self._odom_sub)
+        self._node.destroy_subscription(self._position_sub)
+        self._node.destroy_subscription(self._orientation_sub)
+        self._node.destroy_subscription(self._linear_velocity_sub)
+        self._node.destroy_subscription(self._angular_velocity_sub)
+        self._node.destroy_subscription(self._off_sub)
+        self._node.destroy_subscription(self._steady_sub)
+        self._node.destroy_subscription(self._kill_switch_sub)
 
     def _odom_callback(self, msg: Odometry):
         self.last_odom_message = msg
 
     def _track_publisher(self, node):
         with self._competing_publishing_lock:
-            current_time = rospy.get_rostime()
+            current_time = self._node.get_clock().now()
             # Format for _controller_publish_history
             # First list is a list of previously published nodes
             # Second list is an ordered list of times, whose index correspond to the nodes in the first list
@@ -208,28 +219,28 @@ class ControllersWidget(QWidget):
         self._linear_target_data[0] = "Position:"
         self._linear_target_data[1] = "({0:.2f}, {1:.2f}, {2:.2f})".format(msg.x, msg.y, msg.z)
         self._linear_target_data[2] = msg._connection_header['callerid']
-        self._linear_target_data[3] = rospy.get_rostime()
+        self._linear_target_data[3] = self._node.get_clock().now()
 
     def _orientation_callback(self, msg):
         self._track_publisher(msg._connection_header['callerid'])
         self._angular_target_data[0] = "Orientation:"
         self._angular_target_data[1] = "({0:.2f}, {1:.2f}, {2:.2f}. {3:.2f})".format(msg.x, msg.y, msg.z, msg.w)
         self._angular_target_data[2] = msg._connection_header['callerid']
-        self._angular_target_data[3] = rospy.get_rostime()
+        self._angular_target_data[3] = self._node.get_clock().now()
 
     def _linear_velocity_callback(self, msg):
         self._track_publisher(msg._connection_header['callerid'])
         self._linear_target_data[0] = "Lin Vel:"
         self._linear_target_data[1] = "({0:.2f}, {1:.2f}, {2:.2f})".format(msg.x, msg.y, msg.z)
         self._linear_target_data[2] = msg._connection_header['callerid']
-        self._linear_target_data[3] = rospy.get_rostime()
+        self._linear_target_data[3] = self._node.get_clock().now()
 
     def _angular_velocity_callback(self, msg):
         self._track_publisher(msg._connection_header['callerid'])
         self._angular_target_data[0] = "Ang Vel:"
         self._angular_target_data[1] = "({0:.2f}, {1:.2f}, {2:.2f})".format(msg.x, msg.y, msg.z)
         self._angular_target_data[2] = msg._connection_header['callerid']
-        self._angular_target_data[3] = rospy.get_rostime()
+        self._angular_target_data[3] = self._node.get_clock().now()
 
     def _off_callback(self, msg):
         self._linear_target_data = ["Position:", "No Data", None, None]
@@ -264,7 +275,7 @@ class ControllersWidget(QWidget):
 
     def _confim_unkill_btn_callback(self, i):
         if i.text() == "&Yes":
-            self._software_kill_pub.publish(False)
+            self._software_kill_pub.publish(Bool(data=False))
             self._software_kill.setChecked(False)
 
     @Slot()
@@ -272,7 +283,7 @@ class ControllersWidget(QWidget):
         if self._software_kill.isChecked():
             self._linear_target_data = ["Position:", "No Data", None, None]
             self._angular_target_data = ["Orientation:", "No Data", None, None]
-            self._software_kill_pub.publish(True)
+            self._software_kill_pub.publish(Bool(data=True))
         else:
             if self._linear_target_data[3] is not None or self._angular_target_data[3] is not None:
                 if self.confirm_unkill is None:
@@ -285,7 +296,7 @@ class ControllersWidget(QWidget):
                 self.confirm_unkill.show()
                 self._software_kill.setChecked(True)
             else:
-                self._software_kill_pub.publish(False)
+                self._software_kill_pub.publish(Bool(data=False))
 
     @Slot()
     def _load_current_position_callback(self):
@@ -348,17 +359,17 @@ class ControllersWidget(QWidget):
         # We are subscribing to these topics as well, so there must be another subscriber for controllers to be present
         self._load_current_position.setEnabled(self.last_odom_message is not None)
         self._load_current_orientation.setEnabled(self.last_odom_message is not None)
-        self._publish_position.setEnabled((self._position_pub.get_num_connections() > 1) and (self._orientation_pub.get_num_connections() > 1))
-        self._stop_controller.setEnabled(self._off_pub.get_num_connections() > 1)
+        self._publish_position.setEnabled((self._position_pub.get_subscription_count() > 1) and (self._orientation_pub.get_subscription_count() > 1))
+        self._stop_controller.setEnabled(self._off_pub.get_subscription_count() > 1)
 
-        self._software_kill.setEnabled(self._software_kill_pub.get_num_connections() > 0)
+        self._software_kill.setEnabled(self._software_kill_pub.get_subscription_count() > 0)
         kill_switch_text = ""
         if self.kill_switch_killed:
             kill_switch_text = " (Killed)"
         self._software_kill.setText("Kill Thrusters" + kill_switch_text)
 
         # Update linear and angular targets for the controller
-        current_time = rospy.get_rostime()
+        current_time = self._node.get_clock().now()
         linear_time_diff = ""
         linear_origin_node = ""
         if self._linear_target_data[3] is not None:
@@ -385,7 +396,7 @@ class ControllersWidget(QWidget):
         else:
             self._steady_light.setStyleSheet(self.LIGHT_STYLE_OFF)
 
-        if self.conflicting_publisher_light_data and (rospy.get_rostime() - self.conflicting_publisher_light_time) <= self.CONFLICT_EXPIRATION_TIME:
+        if self.conflicting_publisher_light_data and (self._node.get_clock().now() - self.conflicting_publisher_light_time) <= self.CONFLICT_EXPIRATION_TIME:
             self._conflicting_publisher_light.setStyleSheet(self.LIGHT_STYLE_RED)
             self._conflicting_publisher_light.setToolTip("Conflicts: {0} and {1}".format(self.conflicting_nodes[0], self.conflicting_nodes[1]))
         else:
@@ -440,7 +451,7 @@ class ControllersWidget(QWidget):
     # Actions Management
     ########################################
     def add_action(self, name, topic, spec, has_results=False):
-        action = ActionWidget(name, self.namespace, topic, spec, self._actions_layout, has_results)
+        action = ActionWidget(self._node, name, self.namespace, topic, spec, self._actions_layout, has_results)
         self._actions.append(action)
 
     def update_namespace(self):
@@ -462,10 +473,12 @@ class ControllersPlugin(Plugin):
 
     def __init__(self, context):
         super(ControllersPlugin, self).__init__(context)
+        self._node = context.node
+
         # Give QObjects reasonable names
         self.setObjectName('ControllersPlugin')
 
-        self._widget = ControllersWidget()
+        self._widget = ControllersWidget(self._node)
         self._widget.start()
         
         if context.serial_number() > 1:

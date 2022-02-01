@@ -1,9 +1,29 @@
-from distutils.core import setup
-from catkin_pkg.python_setup import generate_distutils_setup
-  
-d = generate_distutils_setup(
-    packages=['riptide_rqt_plugins'],
-    package_dir={'': 'src'},
-)
+from setuptools import setup
+from glob import glob
+import os
 
-setup(**d)
+package_name = 'riptide_rqt_plugins'
+setup(
+    name=package_name,
+    version='1.0.1',
+    package_dir={'': 'src'}, 
+    packages=['riptide_rqt_plugins'],
+    data_files=[
+        ('share/ament_index/resource_index/packages',
+            ['resource/' + package_name]),
+        (os.path.join('share', package_name, 'resource'), glob('resource/*')),
+        (os.path.join('share', package_name), ['plugin.xml']),
+        (os.path.join('share', package_name), ['package.xml']),
+    ],
+    install_requires=['setuptools'],
+    zip_safe=True,
+    author='Robert Pafford',
+    maintainer='OSU UWRT',
+    maintainer_email='osu.uwrt@gmail.com',
+    keywords=['ROS', 'riptide'],
+    description=(
+        'RQT Plugins for Riptide specific features'
+    ),
+    license='BSD',
+    scripts=['scripts/riptide_rqt_plugins'],
+)

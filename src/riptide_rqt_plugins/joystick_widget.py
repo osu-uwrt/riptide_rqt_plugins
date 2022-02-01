@@ -1,19 +1,12 @@
+from ament_index_python import get_resource
 import os
-import rospy
-import rospkg
-import roslaunch
-import rosnode
+#import roslaunch
 
 from python_qt_binding import loadUi
 from python_qt_binding.QtWidgets import QWidget, QLabel, QPushButton, QComboBox, QTextEdit, QMessageBox, QAbstractButton
 from python_qt_binding.QtCore import Slot, pyqtSlot
 
 class PS3TeleopWidget(QWidget):
-    # Constant Vars
-    ui_file = os.path.join(rospkg.RosPack().get_path('riptide_rqt_plugins'), 'resource', 'PS3TeleopControl.ui')
-    instructions_ui_file = os.path.join(rospkg.RosPack().get_path('riptide_rqt_plugins'), 'resource', 'TextWindow.ui')
-    instructions_html_file = os.path.join(rospkg.RosPack().get_path('riptide_rqt_plugins'), 'resource', 'TeleopInstructions.html')
-
     confirm_close = None
     confirm_close_open = False
     instructions_window = None
@@ -26,8 +19,9 @@ class PS3TeleopWidget(QWidget):
 
     selected_joystick_device = ""
 
-    def __init__(self, namespace, parent_plugin):
+    def __init__(self, namespace, parent_plugin, node):
         super(PS3TeleopWidget, self).__init__()
+        self._node = node
 
         self.namespace = namespace
         self._parent_plugin = parent_plugin
@@ -35,6 +29,10 @@ class PS3TeleopWidget(QWidget):
         self.prev_input_list = []
 
         # Load UI into class
+        _, package_path = get_resource('packages', 'riptide_rqt_plugins')
+        self.ui_file = os.path.join(package_path, 'share', 'riptide_rqt_plugins', 'resource', 'PS3TeleopControl.ui')
+        self.instructions_ui_file = os.path.join(package_path, 'share', 'riptide_rqt_plugins', 'resource', 'TextWindow.ui')
+        self.instructions_html_file = os.path.join(package_path, 'share', 'riptide_rqt_plugins', 'resource', 'TeleopInstructions.html')
         loadUi(self.ui_file, self)
 
         self.setObjectName('PS3TeleopWidget')
@@ -159,7 +157,7 @@ class PS3TeleopWidget(QWidget):
 
     def tick(self):
         # Read states of nodes
-        teleop_node_running = (self.namespace + "/ps3_teleop") in rosnode.get_node_names()
+        teleop_node_running = (self.namespace + "/ps3_teleop") in self._node.get_node_names()
         process_running = False
         if self.process is not None:
             process_running = self.process.is_alive()

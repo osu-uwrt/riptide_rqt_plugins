@@ -1,18 +1,15 @@
+from ament_index_python import get_resource
 import os
-import rospy
-import rospkg
-import actionlib
-from actionlib_msgs.msg import GoalStatus
+from action_msgs.msg import GoalStatus
+from rclpy.action import ActionClient
 
 from python_qt_binding import loadUi
 from python_qt_binding.QtWidgets import QWidget, QLabel, QPushButton, QTextEdit
 from python_qt_binding.QtCore import Slot
 
-class ActionWidget(QWidget):
-    # Constant Vars
-    ui_file = os.path.join(rospkg.RosPack().get_path('riptide_rqt_plugins'), 'resource', 'ActionControl.ui')
-    results_ui_file = os.path.join(rospkg.RosPack().get_path('riptide_rqt_plugins'), 'resource', 'TextWindow.ui')
+print(dir(GoalStatus))
 
+class ActionWidget(QWidget):
     # Negative numbers for states, since actionserver uses non-negative numbers for status
     STATE_BUSY = -3
     STATE_UNINITIALIZED = -2
@@ -29,8 +26,10 @@ class ActionWidget(QWidget):
     last_result = None
     results_window = None
 
-    def __init__(self, action_name, namespace, action_topic, action_spec, actions_layout, has_results):
+    def __init__(self, node, action_name, namespace, action_topic, action_spec, actions_layout, has_results):
         super(ActionWidget, self).__init__()
+        self._node = node
+
         # Initialize instance variables
         self.name = action_name
         self.action_spec = action_spec
@@ -39,6 +38,9 @@ class ActionWidget(QWidget):
         self.has_results = has_results
 
         # Load UI into class
+        _, package_path = get_resource('packages', 'riptide_rqt_plugins')
+        self.ui_file = os.path.join(package_path, 'share', 'riptide_rqt_plugins', 'resource', 'ActionControl.ui')
+        self.results_ui_file = os.path.join(package_path, 'share', 'riptide_rqt_plugins', 'resource', 'TextWindow.ui')
         loadUi(self.ui_file, self)
 
         self.setObjectName('ActionWidget-' + action_topic)
@@ -67,19 +69,14 @@ class ActionWidget(QWidget):
     ########################################
 
     def _init_topics(self):
-        self._action_client = actionlib.ActionClient(self.namespace + "/" + self.topic, self.action_spec)
+        self._action_client = ActionClient(self.namespace + "/" + self.topic, self.action_spec)
         self._set_state(ActionWidget.STATE_LOADING)
 
         self._results_btn.setEnabled(False)
         self.last_result = None
 
     def _action_server_available(self):
-        try:
-           return self._action_client.wait_for_server(rospy.Duration(-0.001))
-        except TypeError:
-            # If rqt starts <1ms after ros the first call might fail since the duration will be negative
-            # But, duration of 0 means block until server is found, so a negative number is needed to never block
-            return False
+        return self._action_client.wait_for_server(0)
 
     ########################################
     # Callback Functions
@@ -157,12 +154,13 @@ class ActionWidget(QWidget):
     ########################################
 
     GOAL_PRIORITY_LIST = [
-                            GoalStatus.ACTIVE,                              # Active highest priority, since it should be clear when running
-                            GoalStatus.PREEMPTING, GoalStatus.RECALLING,    # Preempting/Recalling means that it could still be running
-                            GoalStatus.REJECTED,                            # Rejected state means that there was an error processing goal
-                            GoalStatus.PREEMPTED, GoalStatus.RECALLED,      # Preempted/Recalled means that it could be in an unstable state
-                            GoalStatus.ABORTED,                             # Report failure of goal completion
-                            GoalStatus.SUCCEEDED,                           # Finally report success of goal completion
+                            GoalStatus.STATUS_UNKNOWN,
+                            GoalStatus.STATUS_EXECUTING,                    # Active highest priority, since it should be clear when running
+                            GoalStatus.STATUS_ACCEPTED,
+                            GoalStatus.STATUS_CANCELING,                    # Preempting/Recalling means that it could still be running
+                            GoalStatus.STATUS_CANCELED,                     # Rejected state means that there was an error processing goal
+                            GoalStatus.STATUS_ABORTED,                      # Preempted/Recalled means that it could be in an unstable state
+                            GoalStatus.STATUS_SUCCEEDED,                    # Finally report success of goal completion
                         ]
 
     def _get_highest_priority_state(self, statelist):
@@ -175,7 +173,7 @@ class ActionWidget(QWidget):
                     action_index = state_index
                     action_status = state.status
             except ValueError:
-                rospy.logwarn("Unexpected status from ActionServer: %d (%s)", state.status, str(state))
+                self._node.get_logger().warn("Unexpected status from ActionServer: %d (%s)", state.status, str(state))
         
         return action_status
 

@@ -2,9 +2,7 @@
 
 import sys
 
-from riptide_rqt_plugins.controllers import ControllersPlugin
 from rqt_gui.main import Main
 
-plugin = 'riptide_rqt_plugins'
-main = Main(filename=plugin)
-sys.exit(main.main(standalone=plugin))
+main = Main()
+sys.exit(main.main(sys.argv, standalone='riptide_rqt_plugins.controllers.ControllersPlugin'))
