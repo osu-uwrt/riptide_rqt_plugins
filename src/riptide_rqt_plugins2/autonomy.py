@@ -10,7 +10,7 @@ from python_qt_binding.QtCore import QTimer, Slot
 from .task_action_widget import TaskActionWidget
 
 class AutonomyWidget(QWidget):
-    ui_file = os.path.join(rospkg.RosPack().get_path('riptide_rqt_plugins'), 'resource', 'AutonomyPlugin.ui')
+    ui_file = os.path.join(rospkg.RosPack().get_path('riptide_rqt_plugins2'), 'resource', 'AutonomyPlugin.ui')
     task_action_listener_topic = "task_action_listener"
 
     namespace = ""

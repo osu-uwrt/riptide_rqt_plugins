@@ -1,5 +1,5 @@
 <library path="src">
-  <class name="Controllers" type="riptide_rqt_plugins.controllers.ControllersPlugin" base_class_type="rqt_gui_py::Plugin">
+  <class name="Controllers" type="riptide_rqt_plugins2.controllers.ControllersPlugin" base_class_type="rqt_gui_py::Plugin">
     <description>
       A python GUI plugin to interact with Riptide controllers
     </description>
@@ -17,7 +17,7 @@
       <label>Controller Actions</label>
     </qtgui>
   </class>
-  <class name="Autonomy" type="riptide_rqt_plugins.autonomy.AutonomyPlugin" base_class_type="rqt_gui_py::Plugin">
+  <class name="Autonomy" type="riptide_rqt_plugins2.autonomy.AutonomyPlugin" base_class_type="rqt_gui_py::Plugin">
     <description>
       A python GUI plugin to interact with Riptide autonomy actions
     </description>

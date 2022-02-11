@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 <package format="3">
-  <name>riptide_rqt_plugins</name>
+  <name>riptide_rqt_plugins2</name>
   <version>1.0.1</version>
   <description>RQT Plugins for Riptide specific features</description>
 

@@ -29,10 +29,10 @@ class PS3TeleopWidget(QWidget):
         self.prev_input_list = []
 
         # Load UI into class
-        _, package_path = get_resource('packages', 'riptide_rqt_plugins')
-        self.ui_file = os.path.join(package_path, 'share', 'riptide_rqt_plugins', 'resource', 'PS3TeleopControl.ui')
-        self.instructions_ui_file = os.path.join(package_path, 'share', 'riptide_rqt_plugins', 'resource', 'TextWindow.ui')
-        self.instructions_html_file = os.path.join(package_path, 'share', 'riptide_rqt_plugins', 'resource', 'TeleopInstructions.html')
+        _, package_path = get_resource('packages', 'riptide_rqt_plugins2')
+        self.ui_file = os.path.join(package_path, 'share', 'riptide_rqt_plugins2', 'resource', 'PS3TeleopControl.ui')
+        self.instructions_ui_file = os.path.join(package_path, 'share', 'riptide_rqt_plugins2', 'resource', 'TextWindow.ui')
+        self.instructions_html_file = os.path.join(package_path, 'share', 'riptide_rqt_plugins2', 'resource', 'TeleopInstructions.html')
         loadUi(self.ui_file, self)
 
         self.setObjectName('PS3TeleopWidget')

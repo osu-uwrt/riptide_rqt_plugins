@@ -10,7 +10,7 @@ import threading
 from geometry_msgs.msg import Quaternion, Vector3
 from std_msgs.msg import Empty, Bool
 from nav_msgs.msg import Odometry
-# import riptide_controllers.msg
+import riptide_msgs2.action
 
 from qt_gui.plugin import Plugin
 from python_qt_binding import loadUi
@@ -44,8 +44,8 @@ class ControllersWidget(QWidget):
         self._node = node
     
         # Load UI
-        _, package_path = get_resource('packages', 'riptide_rqt_plugins')
-        ui_file = os.path.join(package_path, 'share', 'riptide_rqt_plugins', 'resource', 'ControllersPlugin.ui')
+        _, package_path = get_resource('packages', 'riptide_rqt_plugins2')
+        ui_file = os.path.join(package_path, 'share', 'riptide_rqt_plugins2', 'resource', 'ControllersPlugin.ui')
         loadUi(ui_file, self)
         self.setObjectName('ControllersPluginUi')
 
@@ -56,7 +56,7 @@ class ControllersWidget(QWidget):
         self._actions = []
         #self.add_action("Calibrate Buoyancy", "calibrate_buoyancy", riptide_controllers.msg.CalibrateBuoyancyAction, has_results=True)
         #self.add_action("Calibrate Drag", "calibrate_drag", riptide_controllers.msg.CalibrateDragAction, has_results=True)
-        #self.add_action("Thruster Test", "thruster_test", riptide_controllers.msg.ThrusterTestAction, has_results=False)
+        self.add_action("Thruster Test", "thruster_test", riptide_msgs2.action.ThrusterTest, has_results=False)
 
         self._teleop_widget = PS3TeleopWidget(self.namespace, self, self._node)
         self._teleop_widget_layout = self.findChild(QVBoxLayout, "teleopControlLayout")

@@ -38,9 +38,9 @@ class ActionWidget(QWidget):
         self.has_results = has_results
 
         # Load UI into class
-        _, package_path = get_resource('packages', 'riptide_rqt_plugins')
-        self.ui_file = os.path.join(package_path, 'share', 'riptide_rqt_plugins', 'resource', 'ActionControl.ui')
-        self.results_ui_file = os.path.join(package_path, 'share', 'riptide_rqt_plugins', 'resource', 'TextWindow.ui')
+        _, package_path = get_resource('packages', 'riptide_rqt_plugins2')
+        self.ui_file = os.path.join(package_path, 'share', 'riptide_rqt_plugins2', 'resource', 'ActionControl.ui')
+        self.results_ui_file = os.path.join(package_path, 'share', 'riptide_rqt_plugins2', 'resource', 'TextWindow.ui')
         loadUi(self.ui_file, self)
 
         self.setObjectName('ActionWidget-' + action_topic)
@@ -69,7 +69,7 @@ class ActionWidget(QWidget):
     ########################################
 
     def _init_topics(self):
-        self._action_client = ActionClient(self.namespace + "/" + self.topic, self.action_spec)
+        self._action_client = ActionClient(self._node, self.action_spec, self.namespace + "/" + self.topic)
         self._set_state(ActionWidget.STATE_LOADING)
 
         self._results_btn.setEnabled(False)
@@ -164,7 +164,7 @@ class ActionWidget(QWidget):
                         ]
 
     def _get_highest_priority_state(self, statelist):
-        action_status = GoalStatus.PENDING
+        action_status = GoalStatus.STATUS_
         action_index = len(ActionWidget.GOAL_PRIORITY_LIST)
         for state in statelist:
             try:

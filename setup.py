@@ -2,12 +2,12 @@ from setuptools import setup
 from glob import glob
 import os
 
-package_name = 'riptide_rqt_plugins'
+package_name = 'riptide_rqt_plugins2'
 setup(
     name=package_name,
     version='1.0.1',
     package_dir={'': 'src'}, 
-    packages=['riptide_rqt_plugins'],
+    packages=[package_name],
     data_files=[
         ('share/ament_index/resource_index/packages',
             ['resource/' + package_name]),
@@ -24,6 +24,5 @@ setup(
     description=(
         'RQT Plugins for Riptide specific features'
     ),
-    license='BSD',
-    scripts=['scripts/riptide_rqt_plugins'],
+    license='BSD'
 )
