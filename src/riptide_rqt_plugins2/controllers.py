@@ -1,9 +1,8 @@
-from ament_index_python import get_resource
-from rclpy.duration import Duration
-from rclpy.qos import QoSDurabilityPolicy, QoSHistoryPolicy, QoSReliabilityPolicy
-from rclpy.qos import QoSProfile
 import os
-import rospkg
+import rclpy
+from ament_index_python.packages import get_package_share_directory
+from rclpy.duration import Duration
+from rclpy.qos import qos_profile_sensor_data, qos_profile_system_default
 
 import threading
 
@@ -11,6 +10,7 @@ from geometry_msgs.msg import Quaternion, Vector3
 from std_msgs.msg import Empty, Bool
 from nav_msgs.msg import Odometry
 import riptide_msgs2.action
+from riptide_msgs2.msg import KillSwitchReport, RobotState
 
 from qt_gui.plugin import Plugin
 from python_qt_binding import loadUi
@@ -19,6 +19,8 @@ from python_qt_binding.QtCore import QTimer, Slot
 
 from .action_widget import ActionWidget
 from .joystick_widget import PS3TeleopWidget
+
+package_share_dir = get_package_share_directory('riptide_rqt_plugins2')
 
 class ControllersWidget(QWidget):
     namespace = ""
@@ -39,13 +41,12 @@ class ControllersWidget(QWidget):
     CONFLICT_EXPIRATION_TIME = Duration(seconds=30)
     CONFLICT_SEQUENCE_TIME = Duration(seconds=10)
 
-    def __init__(self, node):
+    def __init__(self, node: 'rclpy.Node'):
         super(ControllersWidget, self).__init__()
-        self._node = node
+        self._node: 'rclpy.Node' = node
     
         # Load UI
-        _, package_path = get_resource('packages', 'riptide_rqt_plugins2')
-        ui_file = os.path.join(package_path, 'share', 'riptide_rqt_plugins2', 'resource', 'ControllersPlugin.ui')
+        ui_file = os.path.join(package_share_dir, 'resource', 'ControllersPlugin.ui')
         loadUi(ui_file, self)
         self.setObjectName('ControllersPluginUi')
 
@@ -54,8 +55,8 @@ class ControllersWidget(QWidget):
         # Configure all actions to be used
         self._actions_layout = self.findChild(QVBoxLayout, "actionsVerticalLayout")
         self._actions = []
-        #self.add_action("Calibrate Buoyancy", "calibrate_buoyancy", riptide_controllers.msg.CalibrateBuoyancyAction, has_results=True)
-        #self.add_action("Calibrate Drag", "calibrate_drag", riptide_controllers.msg.CalibrateDragAction, has_results=True)
+        self.add_action("Calibrate Buoyancy", "calibrate_buoyancy", riptide_msgs2.action.CalibrateBuoyancy, has_results=True)
+        self.add_action("Calibrate Drag", "calibrate_drag", riptide_msgs2.action.CalibrateDrag, has_results=True)
         self.add_action("Thruster Test", "thruster_test", riptide_msgs2.action.ThrusterTest, has_results=False)
 
         self._teleop_widget = PS3TeleopWidget(self.namespace, self, self._node)
@@ -103,6 +104,12 @@ class ControllersWidget(QWidget):
         # if there's a competing publisher and race conditions occur without it
         self._competing_publishing_lock = threading.Lock()
 
+        # Initialize kill switch message with node info
+        self.switch_msg = KillSwitchReport()
+        self.switch_msg.header.frame_id = self._node.get_namespace() + '/' + self._node.get_name()
+        self.switch_msg.switch_needs_update = False
+        self.switch_msg.kill_switch_id = KillSwitchReport.KILL_SWITCH_RQT_CONTROLLER
+
         # Setup timer
         self._tick_timer = QTimer(self)
         self._tick_timer.timeout.connect(self.timer_tick)
@@ -148,30 +155,22 @@ class ControllersWidget(QWidget):
     ########################################
 
     def _init_topics(self):
-        # TODO: Fix QOS Profiles
-        self._position_pub = self._node.create_publisher(Vector3, self.namespace + "/position", 1)
-        self._orientation_pub = self._node.create_publisher(Quaternion, self.namespace + "/orientation", 1)
-        self._off_pub = self._node.create_publisher(Empty, self.namespace + "/off", 1)
+        self._position_pub = self._node.create_publisher(Vector3, self.namespace + "/position", qos_profile_system_default)
+        self._orientation_pub = self._node.create_publisher(Quaternion, self.namespace + "/orientation", qos_profile_system_default)
+        self._off_pub = self._node.create_publisher(Empty, self.namespace + "/off", qos_profile_system_default)
 
-        software_kill_qos = QoSProfile(depth=1)
-        software_kill_qos.reliability = QoSReliabilityPolicy.RELIABLE
-        software_kill_qos.history = QoSHistoryPolicy.KEEP_LAST
-        software_kill_qos.durability = QoSDurabilityPolicy.TRANSIENT_LOCAL
-        self._software_kill_pub = self._node.create_publisher(Bool, self.namespace + "/control/software_kill", software_kill_qos)
+        self._software_kill_pub = self._node.create_publisher(KillSwitchReport, self.namespace + "/control/software_kill", qos_profile_sensor_data)
 
         self._odom_sub = self._node.create_subscription(Odometry, self.namespace + "/odometry/filtered", self._odom_callback, 1)
-        self._position_sub = self._node.create_subscription(Vector3, self.namespace + "/position", self._position_callback, 1)
-        self._orientation_sub = self._node.create_subscription(Quaternion, self.namespace + "/orientation", self._orientation_callback, 1)
-        self._linear_velocity_sub = self._node.create_subscription(Vector3, self.namespace + "/linear_velocity", self._linear_velocity_callback, 1)
-        self._angular_velocity_sub = self._node.create_subscription(Vector3, self.namespace + "/angular_velocity", self._angular_velocity_callback, 1)
-        self._off_sub = self._node.create_subscription(Empty, self.namespace + "/off", self._off_callback, 1)
-        self._steady_sub = self._node.create_subscription(Bool, self.namespace + "/steady", self._steady_callback, 1)
-        self._kill_switch_sub = self._node.create_subscription(Bool, self.namespace + "/state/kill_switch", self._kill_switch_callback, 1)
+        self._position_sub = self._node.create_subscription(Vector3, self.namespace + "/position", self._position_callback, qos_profile_system_default)
+        self._orientation_sub = self._node.create_subscription(Quaternion, self.namespace + "/orientation", self._orientation_callback, qos_profile_system_default)
+        self._linear_velocity_sub = self._node.create_subscription(Vector3, self.namespace + "/linear_velocity", self._linear_velocity_callback, qos_profile_system_default)
+        self._angular_velocity_sub = self._node.create_subscription(Vector3, self.namespace + "/angular_velocity", self._angular_velocity_callback, qos_profile_system_default)
+        self._off_sub = self._node.create_subscription(Empty, self.namespace + "/off", self._off_callback, qos_profile_system_default)
+        self._steady_sub = self._node.create_subscription(Bool, self.namespace + "/steady", self._steady_callback, qos_profile_system_default)
+        self._kill_switch_sub = self._node.create_subscription(RobotState, self.namespace + "/state/robot", self._kill_switch_callback, qos_profile_sensor_data)
 
     def _cleanup_topics(self):
-        # Disable software kill in the event it was enabled
-        self._software_kill_pub.publish(Bool(data=False))
-
         self._node.destroy_publisher(self._position_pub)
         self._node.destroy_publisher(self._orientation_pub)
         self._node.destroy_publisher(self._off_pub)
@@ -249,8 +248,8 @@ class ControllersWidget(QWidget):
     def _steady_callback(self, msg):
         self.steady_light_data = msg.data
 
-    def _kill_switch_callback(self, msg):
-        self.kill_switch_killed = not msg.data
+    def _kill_switch_callback(self, msg: RobotState):
+        self.kill_switch_killed = not msg.kill_switch_inserted
 
     ########################################
     # Button Callbacks
@@ -275,7 +274,10 @@ class ControllersWidget(QWidget):
 
     def _confim_unkill_btn_callback(self, i):
         if i.text() == "&Yes":
-            self._software_kill_pub.publish(Bool(data=False))
+            self.switch_msg.header.stamp = self._node.get_clock().now().to_msg()
+            self.switch_msg.switch_asserting_kill = False
+            self._software_kill_pub.publish(self.switch_msg)
+
             self._software_kill.setChecked(False)
 
     @Slot()
@@ -283,7 +285,10 @@ class ControllersWidget(QWidget):
         if self._software_kill.isChecked():
             self._linear_target_data = ["Position:", "No Data", None, None]
             self._angular_target_data = ["Orientation:", "No Data", None, None]
-            self._software_kill_pub.publish(Bool(data=True))
+
+            self.switch_msg.header.stamp = self._node.get_clock().now().to_msg()
+            self.switch_msg.switch_asserting_kill = True
+            self._software_kill_pub.publish(self.switch_msg)
         else:
             if self._linear_target_data[3] is not None or self._angular_target_data[3] is not None:
                 if self.confirm_unkill is None:
@@ -296,7 +301,10 @@ class ControllersWidget(QWidget):
                 self.confirm_unkill.show()
                 self._software_kill.setChecked(True)
             else:
-                self._software_kill_pub.publish(Bool(data=False))
+                self.switch_msg.header.stamp = self._node.get_clock().now().to_msg()
+                self.switch_msg.switch_asserting_kill = False
+                self._software_kill_pub.publish(self.switch_msg)
+                # TODO: Move to constant publish
 
     @Slot()
     def _load_current_position_callback(self):
