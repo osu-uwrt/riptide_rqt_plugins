@@ -30,12 +30,11 @@ class PS3TeleopWidget(QWidget):
     selected_joystick_device = ""
     teleop_enabled = False
 
-    def __init__(self, namespace, parent_plugin, node: 'rclpy.Node'):
+    def __init__(self, namespace, node: 'rclpy.Node'):
         super(PS3TeleopWidget, self).__init__()
         self._node: 'rclpy.Node' = node
 
         self.namespace = namespace
-        self._parent_plugin = parent_plugin
         self.available_joysticks = []
         self.prev_input_list = []
 
@@ -75,7 +74,7 @@ class PS3TeleopWidget(QWidget):
         return self.process is not None and self.process.poll() is None
 
     def _init_topics(self):
-        self._teleop_enabled_sub = self._node.create_subscription(Bool, self.namespace + '/teleop_enabled', self.teleop_enabled, 1)
+        self._teleop_enabled_sub = self._node.create_subscription(Bool, self.namespace + '/teleop_enabled', self._teleop_enabled_callback, 1)
         self.teleop_enabled = False
 
     def _cleanup_topics(self):
@@ -120,7 +119,7 @@ class PS3TeleopWidget(QWidget):
         # Check to make sure that the joystick controller isn't still enabled
         teleop_node_name = self.namespace + "/" + self.TELEOP_NODE_NAME
         self._stop_button.setEnabled(False)
-        if self._parent_plugin._angular_target_data[2] == teleop_node_name or self._parent_plugin._linear_target_data[2] == teleop_node_name:
+        if self.teleop_enabled:
             if self.confirm_close is None:
                 self.confirm_close = QMessageBox()
                 self.confirm_close.setIcon(QMessageBox.Critical)

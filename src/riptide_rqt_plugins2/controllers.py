@@ -59,7 +59,7 @@ class ControllersWidget(QWidget):
         self.add_action("Calibrate Drag", "calibrate_drag", riptide_msgs2.action.CalibrateDrag, has_results=True)
         self.add_action("Thruster Test", "thruster_test", riptide_msgs2.action.ThrusterTest, has_results=False)
 
-        self._teleop_widget = PS3TeleopWidget(self.namespace, self, self._node)
+        self._teleop_widget = PS3TeleopWidget(self.namespace, self._node)
         self._teleop_widget_layout = self.findChild(QVBoxLayout, "teleopControlLayout")
         self._teleop_widget_layout.addWidget(self._teleop_widget)
 
@@ -214,31 +214,32 @@ class ControllersWidget(QWidget):
             self._controller_publish_history[1].append(current_time)
 
     def _position_callback(self, msg):
-        self._track_publisher(msg._connection_header['callerid'])
+        #self._track_publisher(msg._connection_header['callerid'])
         self._linear_target_data[0] = "Position:"
         self._linear_target_data[1] = "({0:.2f}, {1:.2f}, {2:.2f})".format(msg.x, msg.y, msg.z)
-        self._linear_target_data[2] = msg._connection_header['callerid']
+        #self._linear_target_data[2] = msg._connection_header['callerid']
         self._linear_target_data[3] = self._node.get_clock().now()
 
     def _orientation_callback(self, msg):
-        self._track_publisher(msg._connection_header['callerid'])
+        #self._track_publisher(msg._connection_header['callerid'])
         self._angular_target_data[0] = "Orientation:"
         self._angular_target_data[1] = "({0:.2f}, {1:.2f}, {2:.2f}. {3:.2f})".format(msg.x, msg.y, msg.z, msg.w)
-        self._angular_target_data[2] = msg._connection_header['callerid']
+        #self._angular_target_data[2] = msg._connection_header['callerid']
         self._angular_target_data[3] = self._node.get_clock().now()
 
     def _linear_velocity_callback(self, msg):
-        self._track_publisher(msg._connection_header['callerid'])
+        print(dir(msg))
+        #self._track_publisher(msg._connection_header['callerid'])
         self._linear_target_data[0] = "Lin Vel:"
         self._linear_target_data[1] = "({0:.2f}, {1:.2f}, {2:.2f})".format(msg.x, msg.y, msg.z)
-        self._linear_target_data[2] = msg._connection_header['callerid']
+        #self._linear_target_data[2] = msg._connection_header['callerid']
         self._linear_target_data[3] = self._node.get_clock().now()
 
     def _angular_velocity_callback(self, msg):
-        self._track_publisher(msg._connection_header['callerid'])
+        #self._track_publisher(msg._connection_header['callerid'])
         self._angular_target_data[0] = "Ang Vel:"
         self._angular_target_data[1] = "({0:.2f}, {1:.2f}, {2:.2f})".format(msg.x, msg.y, msg.z)
-        self._angular_target_data[2] = msg._connection_header['callerid']
+        #self._angular_target_data[2] = msg._connection_header['callerid']
         self._angular_target_data[3] = self._node.get_clock().now()
 
     def _off_callback(self, msg):
