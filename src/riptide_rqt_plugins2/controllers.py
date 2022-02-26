@@ -391,7 +391,7 @@ class ControllersWidget(QWidget):
         angular_time_diff = ""
         angular_origin_node = ""
         if self._angular_target_data[3] is not None:
-            angular_time_diff = " - {0} Secs. Ago".format((current_time - self._angular_target_data[3]).nanoseconds() // 1e9)
+            angular_time_diff = " - {0} Secs. Ago".format((current_time - self._angular_target_data[3]).nanoseconds // 1e9)
         if self._angular_target_data[2] is not None:
             angular_origin_node = "Origin: " + self._angular_target_data[2]
         self._angular_target_title.setText(self._angular_target_data[0])
