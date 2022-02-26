@@ -228,7 +228,6 @@ class ControllersWidget(QWidget):
         self._angular_target_data[3] = self._node.get_clock().now()
 
     def _linear_velocity_callback(self, msg):
-        print(dir(msg))
         #self._track_publisher(msg._connection_header['callerid'])
         self._linear_target_data[0] = "Lin Vel:"
         self._linear_target_data[1] = "({0:.2f}, {1:.2f}, {2:.2f})".format(msg.x, msg.y, msg.z)
@@ -382,7 +381,7 @@ class ControllersWidget(QWidget):
         linear_time_diff = ""
         linear_origin_node = ""
         if self._linear_target_data[3] is not None:
-            linear_time_diff = " - {0} Secs. Ago".format((current_time - self._linear_target_data[3]).secs)
+            linear_time_diff = " - {0} Secs. Ago".format((current_time - self._linear_target_data[3]).nanoseconds // 1e9)
         if self._linear_target_data[2] is not None:
             linear_origin_node = "Origin: " + self._linear_target_data[2]
         self._linear_target_title.setText(self._linear_target_data[0])
@@ -392,7 +391,7 @@ class ControllersWidget(QWidget):
         angular_time_diff = ""
         angular_origin_node = ""
         if self._angular_target_data[3] is not None:
-            angular_time_diff = " - {0} Secs. Ago".format((current_time - self._angular_target_data[3]).secs)
+            angular_time_diff = " - {0} Secs. Ago".format((current_time - self._angular_target_data[3]).nanoseconds() // 1e9)
         if self._angular_target_data[2] is not None:
             angular_origin_node = "Origin: " + self._angular_target_data[2]
         self._angular_target_title.setText(self._angular_target_data[0])
