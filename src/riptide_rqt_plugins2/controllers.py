@@ -1,10 +1,11 @@
 import os
+import math
 import rclpy
+import threading
 from ament_index_python.packages import get_package_share_directory
 from rclpy.duration import Duration
 from rclpy.qos import qos_profile_sensor_data, qos_profile_system_default
-
-import threading
+from transforms3d.euler import euler2quat, quat2euler
 
 from geometry_msgs.msg import Quaternion, Vector3
 from std_msgs.msg import Empty, Bool
@@ -14,13 +15,231 @@ from riptide_msgs2.msg import KillSwitchReport, RobotState
 
 from qt_gui.plugin import Plugin
 from python_qt_binding import loadUi
-from python_qt_binding.QtWidgets import QMessageBox, QWidget, QVBoxLayout, QLineEdit, QPushButton, QDoubleSpinBox, QToolButton, QLabel
+from python_qt_binding.QtWidgets import QMessageBox, QWidget, QVBoxLayout, QLineEdit, QPushButton, QDoubleSpinBox, QLabel, QRadioButton, QHBoxLayout
 from python_qt_binding.QtCore import QTimer, Slot
 
 from .action_widget import ActionWidget
 from .joystick_widget import PS3TeleopWidget
 
 package_share_dir = get_package_share_directory('riptide_rqt_plugins2')
+
+class OrientationControlsManager:
+    def __init__(self, widget: 'ControllersWidget'):
+        self._widget = widget
+
+        # Load in all controls
+        self._orientation_x_label = widget.findChild(QLabel, "orientationXLabel")
+        self._orientation_x = widget.findChild(QDoubleSpinBox, "orientationXValue")
+        self._orientation_y_label = widget.findChild(QLabel, "orientationYLabel")
+        self._orientation_y = widget.findChild(QDoubleSpinBox, "orientationYValue")
+        self._orientation_z_label = widget.findChild(QLabel, "orientationZLabel")
+        self._orientation_z = widget.findChild(QDoubleSpinBox, "orientationZValue")
+        self._orientation_w_label = widget.findChild(QLabel, "orientationWLabel")
+        self._orientation_w = widget.findChild(QDoubleSpinBox, "orientationWValue")
+
+        self._angle_mode_btn = widget.findChild(QPushButton, "angleModeButton")
+        self._euler_mode_radio = widget.findChild(QRadioButton, "eulerModeRadio")
+        self._quaternion_mode_radio = widget.findChild(QRadioButton, "quaternionModeRadio")
+
+        self._angle_mode_btn.clicked.connect(self.toggle_angle)
+        self._euler_mode_radio.clicked.connect(self.set_euler_mode)
+        self._quaternion_mode_radio.clicked.connect(self.set_quaternion_mode)
+
+        # Load initial defaults
+        self.in_euler_mode = False      # Set initial mode to quaternion since that is what the UI file loads into
+        self.in_degree_mode = False
+        self.set_orientation(Quaternion(w=1.0, x=0.0, y=0.0, z=0.0))
+        self.set_euler_mode()
+        self.set_degrees_mode()
+
+    ########################################
+    # Private Control Update Functions
+    ########################################
+
+    def _update_field_mode(self, field: QDoubleSpinBox, half_range: bool):
+        if self.in_euler_mode:
+            if self.in_degree_mode:
+                if half_range:
+                    max_value = 90.0
+                else:
+                    max_value = 180.0
+                
+                field.setMaximum(max_value)
+                field.setMinimum(-max_value)
+                field.setSingleStep(5.0)
+                field.setDecimals(1)
+            else:
+                if half_range:
+                    max_value = math.pi/2
+                else:
+                    max_value = math.pi
+                
+                field.setMaximum(max_value)
+                field.setMinimum(-max_value)
+                field.setSingleStep(0.05)
+                field.setDecimals(3)
+        else:
+            field.setMaximum(1.0)
+            field.setMinimum(-1.0)
+            field.setSingleStep(0.05)
+            field.setDecimals(3)
+
+    ########################################
+    # Settings Restoring/Saving
+    ########################################
+
+    def restore_settings(self, plugin_settings, instance_settings):
+        if instance_settings.contains('orientationMode'):
+            mode = instance_settings.value('orientationMode')
+            if mode == "quaternion":
+                self.set_quaternion_mode()
+            elif mode == "euler":
+                self.set_euler_mode()
+            else:
+                self._widget._node.get_logger().warn("Invalid Orientation Mode '{}' in saved configuration".format(mode))
+        
+        if instance_settings.contains('orientationAngleSystem'):
+            mode = instance_settings.value('orientationAngleSystem')
+            if mode == "degrees":
+                self.set_degrees_mode()
+            elif mode == "radians":
+                self.set_radians_mode()
+            else:
+                self._widget._node.get_logger().warn("Invalid Angle System '{}' in saved configuration".format(mode))
+
+        target_orientation = self.get_orientation()
+        if instance_settings.contains('orientationX'):
+            target_orientation.x = float(instance_settings.value('orientationX'))
+        if instance_settings.contains('orientationY'):
+            target_orientation.y = float(instance_settings.value('orientationY'))
+        if instance_settings.contains('orientationZ'):
+            target_orientation.z = float(instance_settings.value('orientationZ'))
+        if instance_settings.contains('orientationW'):
+            target_orientation.w = float(instance_settings.value('orientationW'))
+        self.set_orientation(target_orientation)
+
+    def save_settings(self, plugin_settings, instance_settings):
+        current_orientation = self.get_orientation()
+        instance_settings.set_value('orientationX', current_orientation.x)
+        instance_settings.set_value('orientationY', current_orientation.y)
+        instance_settings.set_value('orientationZ', current_orientation.z)
+        instance_settings.set_value('orientationW', current_orientation.w)
+        
+        instance_settings.set_value('orientationMode', "euler" if self.in_euler_mode else "quaternion")
+        instance_settings.set_value('orientationAngleSystem', "degrees" if self.in_degree_mode else "radians")
+
+    ########################################
+    # Mode Change Functions
+    ########################################
+
+    def set_quaternion_mode(self):
+        current_orientation = self.get_orientation()
+
+        self.in_euler_mode = False
+        self._quaternion_mode_radio.setChecked(True)
+        self._angle_mode_btn.setVisible(False)
+        self._orientation_x_label.setText("X:")
+        self._orientation_y_label.setText("Y:")
+        self._orientation_z_label.setText("Z:")
+        self._orientation_w_label.setText("W:")
+
+        self._orientation_w_label.setVisible(True)
+        self._orientation_w.setVisible(True)
+
+        self._update_field_mode(self._orientation_x, False)
+        self._update_field_mode(self._orientation_y, True)
+        self._update_field_mode(self._orientation_z, False)
+        self._update_field_mode(self._orientation_w, False)
+
+        self.set_orientation(current_orientation)
+
+    def set_euler_mode(self):
+        current_orientation = self.get_orientation()
+        
+        self.in_euler_mode = True
+        self._euler_mode_radio.setChecked(True)
+        self._angle_mode_btn.setVisible(True)
+        self._orientation_x_label.setText("R:")
+        self._orientation_y_label.setText("P:")
+        self._orientation_z_label.setText("Y:")
+        self._orientation_w_label.setVisible(False)
+        self._orientation_w.setVisible(False)
+
+        self._update_field_mode(self._orientation_x, False)
+        self._update_field_mode(self._orientation_y, True)
+        self._update_field_mode(self._orientation_z, False)
+        self._update_field_mode(self._orientation_w, False)
+
+        self.set_orientation(current_orientation)
+
+    def set_degrees_mode(self):
+        current_orientation = self.get_orientation()
+
+        self.in_degree_mode = True
+        self._angle_mode_btn.setText("Degrees")
+        self._update_field_mode(self._orientation_x, False)
+        self._update_field_mode(self._orientation_y, True)
+        self._update_field_mode(self._orientation_z, False)
+        self._update_field_mode(self._orientation_w, False)
+
+        self.set_orientation(current_orientation)
+
+    def set_radians_mode(self):
+        current_orientation = self.get_orientation()
+
+        self.in_degree_mode = False
+        self._angle_mode_btn.setText("Radians")
+        self._update_field_mode(self._orientation_x, False)
+        self._update_field_mode(self._orientation_y, True)
+        self._update_field_mode(self._orientation_z, False)
+        self._update_field_mode(self._orientation_w, False)
+
+        self.set_orientation(current_orientation)
+
+    def toggle_angle(self):
+        if self.in_degree_mode:
+            self.set_radians_mode()
+        else:
+            self.set_degrees_mode()
+
+    ########################################
+    # Field to Quaternion Conversions
+    ########################################
+
+    def set_orientation(self, orientation: Quaternion):
+        xValue = orientation.x
+        yValue = orientation.y
+        zValue = orientation.z
+        wValue = orientation.w
+
+        if self.in_euler_mode:
+            xValue, yValue, zValue = quat2euler((wValue, xValue, yValue, zValue), 'sxyz')
+
+            if self.in_degree_mode:
+                xValue *= 180.0/math.pi
+                yValue *= 180.0/math.pi
+                zValue *= 180.0/math.pi
+
+        self._orientation_w.setValue(wValue)
+        self._orientation_x.setValue(xValue)
+        self._orientation_y.setValue(yValue)
+        self._orientation_z.setValue(zValue)
+
+    def get_orientation(self) -> Quaternion:
+        xValue=self._orientation_x.value()
+        yValue=self._orientation_y.value()
+        zValue=self._orientation_z.value()
+        wValue=self._orientation_w.value()
+
+        if self.in_euler_mode:
+            if self.in_degree_mode:
+                xValue *= math.pi/180.0
+                yValue *= math.pi/180.0
+                zValue *= math.pi/180.0
+            
+            wValue, xValue, yValue, zValue = euler2quat(xValue, yValue, zValue, axes='sxyz')
+
+        return Quaternion(x=xValue, y=yValue, z=zValue, w=wValue)
 
 class ControllersWidget(QWidget):
     namespace = ""
@@ -78,14 +297,15 @@ class ControllersWidget(QWidget):
         self._linear_target_label = self.findChild(QLabel, "linearTargetLabel")
         self._angular_target_label = self.findChild(QLabel, "angularTargetLabel")
 
-        # Position Publishing
+        # Add lock for competing publishers since multiple publishers share the code to check
+        # if there's a competing publisher and race conditions occur without it
+        self._competing_publishing_lock = threading.Lock()
+
+        # Controller Position Publishing
         self._position_x = self.findChild(QDoubleSpinBox, "positionXValue")
         self._position_y = self.findChild(QDoubleSpinBox, "positionYValue")
         self._position_z = self.findChild(QDoubleSpinBox, "positionZValue")
-        self._orientation_x = self.findChild(QDoubleSpinBox, "orientationXValue")
-        self._orientation_y = self.findChild(QDoubleSpinBox, "orientationYValue")
-        self._orientation_z = self.findChild(QDoubleSpinBox, "orientationZValue")
-        self._orientation_w = self.findChild(QDoubleSpinBox, "orientationWValue")
+        self._orientation_controls_manager = OrientationControlsManager(self)
 
         self._load_current_position = self.findChild(QPushButton, "loadCurrentPosition")
         self._load_current_orientation = self.findChild(QPushButton, "loadCurrentOrientation")
@@ -97,12 +317,9 @@ class ControllersWidget(QWidget):
         self._publish_position.clicked.connect(self._publish_position_callback)
         self._stop_controller.clicked.connect(self._stop_controller_callback)
 
+        # Software Kill
         self._software_kill = self.findChild(QPushButton, "softwareKillButton")
         self._software_kill.clicked.connect(self._software_kill_callback)   
-
-        # Add lock for competing publishers since multiple publishers share the code to check
-        # if there's a competing publisher and race conditions occur without it
-        self._competing_publishing_lock = threading.Lock()
 
         # Initialize kill switch message with node info
         self.switch_msg = KillSwitchReport()
@@ -316,15 +533,12 @@ class ControllersWidget(QWidget):
     @Slot()
     def _load_current_orientation_callback(self):
         if self.last_odom_message is not None:
-            self._orientation_w.setValue(self.last_odom_message.pose.pose.orientation.w)
-            self._orientation_x.setValue(self.last_odom_message.pose.pose.orientation.x)
-            self._orientation_y.setValue(self.last_odom_message.pose.pose.orientation.y)
-            self._orientation_z.setValue(self.last_odom_message.pose.pose.orientation.z)
+            self._orientation_controls_manager.set_orientation(self.last_odom_message.pose.pose.orientation)
 
     @Slot()
     def _publish_position_callback(self):
         self._position_pub.publish(Vector3(x=self._position_x.value(), y=self._position_y.value(), z=self._position_z.value()))
-        self._orientation_pub.publish(Quaternion(x=self._orientation_x.value(), y=self._orientation_y.value(), z=self._orientation_z.value(), w=self._orientation_w.value()))
+        self._orientation_pub.publish(self._orientation_controls_manager.get_orientation())
     
     @Slot()
     def _stop_controller_callback(self):
@@ -420,10 +634,7 @@ class ControllersWidget(QWidget):
         instance_settings.set_value('positionX', self._position_x.value())
         instance_settings.set_value('positionY', self._position_y.value())
         instance_settings.set_value('positionZ', self._position_z.value())
-        instance_settings.set_value('orientationX', self._orientation_x.value())
-        instance_settings.set_value('orientationY', self._orientation_y.value())
-        instance_settings.set_value('orientationZ', self._orientation_z.value())
-        instance_settings.set_value('orientationW', self._orientation_w.value())
+        self._orientation_controls_manager.save_settings(plugin_settings, instance_settings)
 
     def restore_settings(self, plugin_settings, instance_settings):
         # Restore occurs after init
@@ -441,14 +652,7 @@ class ControllersWidget(QWidget):
             self._position_y.setValue(float(instance_settings.value('positionY')))
         if instance_settings.contains('positionZ'):
             self._position_z.setValue(float(instance_settings.value('positionZ')))
-        if instance_settings.contains('orientationX'):
-            self._orientation_x.setValue(float(instance_settings.value('orientationX')))
-        if instance_settings.contains('orientationY'):
-            self._orientation_y.setValue(float(instance_settings.value('orientationY')))
-        if instance_settings.contains('orientationZ'):
-            self._orientation_z.setValue(float(instance_settings.value('orientationZ')))
-        if instance_settings.contains('orientationW'):
-            self._orientation_w.setValue(float(instance_settings.value('orientationW')))
+        self._orientation_controls_manager.restore_settings(plugin_settings, instance_settings)
 
     #def trigger_configuration(self):
         # Comment in to signal that the plugin has a way to configure
