@@ -29,6 +29,7 @@ class PS3TeleopWidget(QWidget):
 
     selected_joystick_device = ""
     teleop_enabled = False
+    waiting_for_stop = False
 
     def __init__(self, namespace, node: 'rclpy.Node'):
         super(PS3TeleopWidget, self).__init__()
@@ -99,6 +100,7 @@ class PS3TeleopWidget(QWidget):
         joystick_node_executable = get_executable_path(**self.JOYSTICK_NODE)
 
         if joystick_node_executable is not None:
+            self.waiting_for_stop = False
             self.process = subprocess.Popen([joystick_node_executable, '--ros-args',
                                             '-p', 'dev:='+self.selected_joystick_device])
         else:
@@ -110,6 +112,7 @@ class PS3TeleopWidget(QWidget):
         if i.text() == "&Yes":
             if self._joy_node_running():
                 self.process.send_signal(signal.SIGINT)
+                self.waiting_for_stop = True
 
     def _confirm_stop_close_callback(self, event):
         self.confirm_close_open = False
@@ -133,6 +136,7 @@ class PS3TeleopWidget(QWidget):
         else:
             if self._joy_node_running():
                 self.process.send_signal(signal.SIGINT)
+                self.waiting_for_stop = True
 
     @Slot()
     def _instructions_callback(self):
@@ -185,7 +189,7 @@ class PS3TeleopWidget(QWidget):
         if not process_running and teleop_node_running and self._joystick_selector.isEnabled():
             self._start_button.setEnabled(True)
         
-        if process_running and not self.confirm_close_open:
+        if process_running and not self.confirm_close_open and not self.waiting_for_stop:
             self._stop_button.setEnabled(True)
         else:
             self._stop_button.setEnabled(False)
