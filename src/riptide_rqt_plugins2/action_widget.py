@@ -33,6 +33,7 @@ class ActionWidget(QWidget):
     state = STATE_UNINITIALIZED
 
     last_result = None
+    count_string = ""
     results_window = None
     _future_state: int = None
     _client_goal_handle: 'ClientGoalHandle | None' = None
@@ -86,6 +87,7 @@ class ActionWidget(QWidget):
 
         self._results_btn.setEnabled(False)
         self.last_result = None
+        self.count_string = ""
         self._future_state = None
         self._client_goal_handle = None
         self._client_goal_future = None
@@ -158,6 +160,8 @@ class ActionWidget(QWidget):
         # Result callback should handle the cleanup
         self._future_state = ActionWidget.STATE_RETRIEVE_FROM_GOAL
 
+    def _feedback_callback(self, feedback_msg):
+        pass
 
     def _result_callback(self, future: Future):
         assert self._client_goal_future == future
@@ -226,7 +230,7 @@ class ActionWidget(QWidget):
             assert self._client_cancel_future == None
 
             self._set_state(ActionWidget.STATE_LOADING)
-            self._client_goal_future = self._action_client.send_goal_async(self._generate_goal())
+            self._client_goal_future = self._action_client.send_goal_async(self._generate_goal(), self._feedback_callback)
             self._client_goal_future.add_done_callback(self._send_goal_callback)
 
     @Slot()
@@ -291,6 +295,7 @@ class ActionWidget(QWidget):
                 self._drop_active_goal()
             self._future_state = None
 
+            self.count_string = ""
             self._set_state(ActionWidget.STATE_NOT_FOUND)
 
     def set_namespace(self, namespace):
@@ -310,8 +315,9 @@ class ActionWidget(QWidget):
                 state = GoalStatus.STATUS_UNKNOWN
         
         # Update the action state
-        if self.state != state:
-            count_string = ""
+        if self.state != state or self.prev_count_string != self.count_string:
+            self.prev_count_string = self.count_string
+            count_string = self.count_string
             self.state = state
 
             if state == ActionWidget.STATE_LOADING or state == ActionWidget.STATE_LOADING_BOOT:

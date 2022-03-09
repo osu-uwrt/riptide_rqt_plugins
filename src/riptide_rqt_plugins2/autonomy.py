@@ -10,7 +10,7 @@ from .task_action_widget import TaskActionWidget
 
 package_share_dir = get_package_share_directory('riptide_rqt_plugins2')
 class AutonomyWidget(QWidget):
-    task_action_listener_topic = "task_action_listener"
+    task_action_listener_topic = "autonomy_task_starter"
 
     namespace = ""
 
