@@ -17,8 +17,8 @@ class TaskActionWidget(ActionWidget):
     ########################################
 
     def _feedback_callback(self, feedback_msg):
-        self.console_history += feedback_msg.feedback.stdout
-        self.console_history += feedback_msg.feedback.stderr
+        self.console_history += feedback_msg.feedback.stdout_data
+        self.console_history += feedback_msg.feedback.stderr_data
 
     def _result_callback(self, future):
         super()._result_callback(future)

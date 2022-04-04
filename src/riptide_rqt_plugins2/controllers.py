@@ -319,15 +319,21 @@ class ControllersWidget(QWidget):
 
         # Software Kill
         self._software_kill = self.findChild(QPushButton, "softwareKillButton")
-        self._software_kill.clicked.connect(self._software_kill_callback)   
+        self._software_kill_enable = self.findChild(QPushButton, "softwareKillEnableButton")
+        self._software_kill_require_ping = self.findChild(QPushButton, "softwareKillRequirePingButton")
+        self._killed_label = self.findChild(QLabel, "killedLabel")
+        self._software_kill.clicked.connect(self._software_kill_callback)
+        self._software_kill_enable.clicked.connect(self._software_kill_enabled_callback)
 
         # Initialize kill switch message with node info
         self.switch_msg = KillSwitchReport()
-        self.switch_msg.header.frame_id = self._node.get_namespace() + '/' + self._node.get_name()
+        self.switch_msg.sender_id = self._node.get_namespace() + '/' + self._node.get_name()
         self.switch_msg.switch_needs_update = False
         self.switch_msg.kill_switch_id = KillSwitchReport.KILL_SWITCH_RQT_CONTROLLER
 
-        # Setup timer
+        # Setup timers
+        self._software_kill_pub_timer = QTimer(self)
+        self._software_kill_pub_timer.timeout.connect(self._software_kill_pub_cb)
         self._tick_timer = QTimer(self)
         self._tick_timer.timeout.connect(self.timer_tick)
 
@@ -344,11 +350,18 @@ class ControllersWidget(QWidget):
 
         self._publish_position.setEnabled(False)
         self._stop_controller.setEnabled(False)
-        self._software_kill.setEnabled(False)
-        self._software_kill.setChecked(False)
 
         self.kill_switch_killed = False
-        self._software_kill.setText("Kill Thrusters")
+        self._killed_label.setStyleSheet(self.LIGHT_STYLE_OFF)
+        self._software_kill_enable.setEnabled(False)
+        self._software_kill_enable.setChecked(False)
+        self._software_kill.setEnabled(False)
+        self._software_kill.setChecked(False)
+        self._software_kill_require_ping.setEnabled(False)
+        self._software_kill_require_ping.setChecked(False)
+        self._software_kill.setVisible(False)
+        self._software_kill_require_ping.setVisible(False)
+        self._killed_label.setVisible(False)
 
         self._linear_target_title.setText("Position:")
         self._linear_target_label.setText("Loading")
@@ -388,6 +401,9 @@ class ControllersWidget(QWidget):
         self._kill_switch_sub = self._node.create_subscription(RobotState, self.namespace + "/state/robot", self._kill_switch_callback, qos_profile_sensor_data)
 
     def _cleanup_topics(self):
+        if self._software_kill_pub_timer.isActive():
+            self._software_kill_pub_timer.stop()
+        
         self._node.destroy_publisher(self._position_pub)
         self._node.destroy_publisher(self._orientation_pub)
         self._node.destroy_publisher(self._off_pub)
@@ -466,6 +482,12 @@ class ControllersWidget(QWidget):
         self.steady_light_data = msg.data
 
     def _kill_switch_callback(self, msg: RobotState):
+        # If the kill switch was just inserted, clear target data
+        # Not going to continuously clear the data so it'll be clear if topics are still publishing after kill
+        if not msg.kill_switch_inserted and not self.kill_switch_killed:
+            self._linear_target_data = ["Position:", "No Data", None, None]
+            self._angular_target_data = ["Orientation:", "No Data", None, None]
+
         self.kill_switch_killed = not msg.kill_switch_inserted
 
     ########################################
@@ -491,37 +513,39 @@ class ControllersWidget(QWidget):
 
     def _confim_unkill_btn_callback(self, i):
         if i.text() == "&Yes":
-            self.switch_msg.header.stamp = self._node.get_clock().now().to_msg()
-            self.switch_msg.switch_asserting_kill = False
-            self._software_kill_pub.publish(self.switch_msg)
-
             self._software_kill.setChecked(False)
 
     @Slot()
-    def _software_kill_callback(self):
-        if self._software_kill.isChecked():
-            self._linear_target_data = ["Position:", "No Data", None, None]
-            self._angular_target_data = ["Orientation:", "No Data", None, None]
+    def _software_kill_enabled_callback(self):
+        self._software_kill_enable.setChecked(True)
+        self._software_kill_enable.setEnabled(False)
+        self._software_kill.setVisible(True)
+        self._software_kill_require_ping.setVisible(True)
+        self._killed_label.setVisible(True)
 
-            self.switch_msg.header.stamp = self._node.get_clock().now().to_msg()
-            self.switch_msg.switch_asserting_kill = True
-            self._software_kill_pub.publish(self.switch_msg)
+        self._software_kill_pub_timer.start(200)
+
+    @Slot()
+    def _software_kill_pub_cb(self):
+        self.switch_msg.switch_asserting_kill = self._software_kill.isChecked()
+        self.switch_msg.switch_needs_update = self._software_kill_require_ping.isChecked()
+        self._software_kill_pub.publish(self.switch_msg)
+
+    @Slot()
+    def _software_kill_callback(self):        
+        # Show message box if controller isn't stopped and trying to unkill
+        if not self._software_kill.isChecked() and self._linear_target_data[3] is not None or self._angular_target_data[3] is not None:
+            if self.confirm_unkill is None:
+                self.confirm_unkill = QMessageBox()
+                self.confirm_unkill.setIcon(QMessageBox.Critical)
+                self.confirm_unkill.setText("The controller is still active!\nIf higher level code is still publishing position when the robot is unkilled, it will unexpectedly move.\nIt is recommended that you press Stop Controllers to ensure nothing is still publishing.\n\nAre you STILL sure you want to unkill the robot?")
+                self.confirm_unkill.setWindowTitle("Are you sure?")
+                self.confirm_unkill.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+                self.confirm_unkill.buttonClicked.connect(self._confim_unkill_btn_callback)
+            self.confirm_unkill.show()
+            self._software_kill.setChecked(True)
         else:
-            if self._linear_target_data[3] is not None or self._angular_target_data[3] is not None:
-                if self.confirm_unkill is None:
-                    self.confirm_unkill = QMessageBox()
-                    self.confirm_unkill.setIcon(QMessageBox.Critical)
-                    self.confirm_unkill.setText("The robot had position data published after the software kill was executed!\nIf higher level code is still publishing position when the robot is unkilled, it will unexpectedly move.\nIt is recommended that you press Stop Controllers to ensure nothing is still publishing.\n\nAre you STILL sure you want to unkill the robot?")
-                    self.confirm_unkill.setWindowTitle("Are you sure?")
-                    self.confirm_unkill.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
-                    self.confirm_unkill.buttonClicked.connect(self._confim_unkill_btn_callback)
-                self.confirm_unkill.show()
-                self._software_kill.setChecked(True)
-            else:
-                self.switch_msg.header.stamp = self._node.get_clock().now().to_msg()
-                self.switch_msg.switch_asserting_kill = False
-                self._software_kill_pub.publish(self.switch_msg)
-                # TODO: Move to constant publish
+            self._software_kill_pub_cb()
 
     @Slot()
     def _load_current_position_callback(self):
@@ -584,18 +608,23 @@ class ControllersWidget(QWidget):
         self._publish_position.setEnabled((self._position_pub.get_subscription_count() > 1) and (self._orientation_pub.get_subscription_count() > 1))
         self._stop_controller.setEnabled(self._off_pub.get_subscription_count() > 1)
 
-        self._software_kill.setEnabled(self._software_kill_pub.get_subscription_count() > 0)
-        kill_switch_text = ""
+        kill_publisher_available = self._software_kill_pub.get_subscription_count() > 0
+        self._software_kill.setEnabled(kill_publisher_available)
+        self._software_kill_require_ping.setEnabled(kill_publisher_available)
+        if not self._software_kill_enable.isChecked():
+            self._software_kill_enable.setEnabled(kill_publisher_available)
+        
         if self.kill_switch_killed:
-            kill_switch_text = " (Killed)"
-        self._software_kill.setText("Kill Thrusters" + kill_switch_text)
+            self._killed_label.setStyleSheet(self.LIGHT_STYLE_RED)
+        else:
+            self._killed_label.setStyleSheet(self.LIGHT_STYLE_OFF)
 
         # Update linear and angular targets for the controller
         current_time = self._node.get_clock().now()
         linear_time_diff = ""
         linear_origin_node = ""
         if self._linear_target_data[3] is not None:
-            linear_time_diff = " - {0} Secs. Ago".format((current_time - self._linear_target_data[3]).nanoseconds // 1e9)
+            linear_time_diff = "{0} Secs. Ago".format((current_time - self._linear_target_data[3]).nanoseconds // 1e9)
         if self._linear_target_data[2] is not None:
             linear_origin_node = "Origin: " + self._linear_target_data[2]
         self._linear_target_title.setText(self._linear_target_data[0])
@@ -605,7 +634,7 @@ class ControllersWidget(QWidget):
         angular_time_diff = ""
         angular_origin_node = ""
         if self._angular_target_data[3] is not None:
-            angular_time_diff = " - {0} Secs. Ago".format((current_time - self._angular_target_data[3]).nanoseconds // 1e9)
+            angular_time_diff = "{0} Secs. Ago".format((current_time - self._angular_target_data[3]).nanoseconds // 1e9)
         if self._angular_target_data[2] is not None:
             angular_origin_node = "Origin: " + self._angular_target_data[2]
         self._angular_target_title.setText(self._angular_target_data[0])

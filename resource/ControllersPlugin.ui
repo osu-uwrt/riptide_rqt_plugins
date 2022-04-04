@@ -686,6 +686,24 @@
         </widget>
        </item>
        <item>
+        <widget class="QPushButton" name="softwareKillEnableButton">
+         <property name="styleSheet">
+          <string notr="true">QPushButton{ color:rgb(32, 74, 135) }
+QPushButton:disabled{ color: rgb(114, 159, 207) }</string>
+         </property>
+         <property name="text">
+          <string>Enable Software Kill</string>
+         </property>
+         <property name="checkable">
+          <bool>true</bool>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </item>
+     <item>
+      <layout class="QHBoxLayout" name="softwareKillGroupLayout">
+       <item>
         <widget class="QPushButton" name="softwareKillButton">
          <property name="enabled">
           <bool>true</bool>
@@ -702,6 +720,35 @@ QPushButton:disabled{ color: rgb(209, 123, 123) }</string>
          </property>
          <property name="checked">
           <bool>false</bool>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QPushButton" name="softwareKillRequirePingButton">
+         <property name="text">
+          <string>Require Connection</string>
+         </property>
+         <property name="checkable">
+          <bool>true</bool>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QLabel" name="killedLabel">
+         <property name="sizePolicy">
+          <sizepolicy hsizetype="Maximum" vsizetype="Preferred">
+           <horstretch>0</horstretch>
+           <verstretch>0</verstretch>
+          </sizepolicy>
+         </property>
+         <property name="styleSheet">
+          <string notr="true">QLabel{ color: rgb(186, 189, 182) }</string>
+         </property>
+         <property name="text">
+          <string>Killed</string>
+         </property>
+         <property name="indent">
+          <number>5</number>
          </property>
         </widget>
        </item>
@@ -723,7 +770,6 @@ QPushButton:disabled{ color: rgb(209, 123, 123) }</string>
   <tabstop>orientationWValue</tabstop>
   <tabstop>publishPositionButton</tabstop>
   <tabstop>stopControllerButton</tabstop>
-  <tabstop>softwareKillButton</tabstop>
  </tabstops>
  <resources/>
  <connections>
