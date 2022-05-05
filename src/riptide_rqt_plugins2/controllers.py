@@ -11,7 +11,7 @@ from geometry_msgs.msg import Quaternion, Vector3
 from std_msgs.msg import Empty, Bool
 from nav_msgs.msg import Odometry
 import riptide_msgs2.action
-from riptide_msgs2.msg import KillSwitchReport, RobotState
+from riptide_msgs2.msg import KillSwitchReport, RobotState, ControllerCommand
 
 from qt_gui.plugin import Plugin
 from python_qt_binding import loadUi
@@ -290,6 +290,7 @@ class ControllersWidget(QWidget):
         # Status Labels
         self._steady_light = self.findChild(QLabel, "steadyLabel")
         self._conflicting_publisher_light = self.findChild(QLabel, "conflictingPublisherLabel")
+        self._conflicting_publisher_light.setVisible(False)
 
         # Target Values
         self._linear_target_title = self.findChild(QLabel, "linearTargetTitle")
@@ -385,19 +386,15 @@ class ControllersWidget(QWidget):
     ########################################
 
     def _init_topics(self):
-        self._position_pub = self._node.create_publisher(Vector3, self.namespace + "/position", qos_profile_system_default)
-        self._orientation_pub = self._node.create_publisher(Quaternion, self.namespace + "/orientation", qos_profile_system_default)
-        self._off_pub = self._node.create_publisher(Empty, self.namespace + "/off", qos_profile_system_default)
+        self._position_pub = self._node.create_publisher(ControllerCommand, self.namespace + "/controller/position", qos_profile_system_default)
+        self._orientation_pub = self._node.create_publisher(ControllerCommand, self.namespace + "/controller/orientation", qos_profile_system_default)
 
         self._software_kill_pub = self._node.create_publisher(KillSwitchReport, self.namespace + "/control/software_kill", qos_profile_sensor_data)
 
         self._odom_sub = self._node.create_subscription(Odometry, self.namespace + "/odometry/filtered", self._odom_callback, 1)
-        self._position_sub = self._node.create_subscription(Vector3, self.namespace + "/position", self._position_callback, qos_profile_system_default)
-        self._orientation_sub = self._node.create_subscription(Quaternion, self.namespace + "/orientation", self._orientation_callback, qos_profile_system_default)
-        self._linear_velocity_sub = self._node.create_subscription(Vector3, self.namespace + "/linear_velocity", self._linear_velocity_callback, qos_profile_system_default)
-        self._angular_velocity_sub = self._node.create_subscription(Vector3, self.namespace + "/angular_velocity", self._angular_velocity_callback, qos_profile_system_default)
-        self._off_sub = self._node.create_subscription(Empty, self.namespace + "/off", self._off_callback, qos_profile_system_default)
-        self._steady_sub = self._node.create_subscription(Bool, self.namespace + "/steady", self._steady_callback, qos_profile_system_default)
+        self._position_sub = self._node.create_subscription(ControllerCommand, self.namespace + "/controller/position", self._position_callback, qos_profile_system_default)
+        self._orientation_sub = self._node.create_subscription(ControllerCommand, self.namespace + "/controller/orientation", self._orientation_callback, qos_profile_system_default)
+        self._steady_sub = self._node.create_subscription(Bool, self.namespace + "/controller/steady", self._steady_callback, qos_profile_system_default)
         self._kill_switch_sub = self._node.create_subscription(RobotState, self.namespace + "/state/robot", self._kill_switch_callback, qos_profile_sensor_data)
 
     def _cleanup_topics(self):
@@ -406,15 +403,11 @@ class ControllersWidget(QWidget):
         
         self._node.destroy_publisher(self._position_pub)
         self._node.destroy_publisher(self._orientation_pub)
-        self._node.destroy_publisher(self._off_pub)
         self._node.destroy_publisher(self._software_kill_pub)
 
         self._node.destroy_subscription(self._odom_sub)
         self._node.destroy_subscription(self._position_sub)
         self._node.destroy_subscription(self._orientation_sub)
-        self._node.destroy_subscription(self._linear_velocity_sub)
-        self._node.destroy_subscription(self._angular_velocity_sub)
-        self._node.destroy_subscription(self._off_sub)
         self._node.destroy_subscription(self._steady_sub)
         self._node.destroy_subscription(self._kill_switch_sub)
 
@@ -446,37 +439,49 @@ class ControllersWidget(QWidget):
             self._controller_publish_history[0].append(node)
             self._controller_publish_history[1].append(current_time)
 
-    def _position_callback(self, msg):
+    def _position_callback(self, msg: ControllerCommand):
         #self._track_publisher(msg._connection_header['callerid'])
-        self._linear_target_data[0] = "Position:"
-        self._linear_target_data[1] = "({0:.2f}, {1:.2f}, {2:.2f})".format(msg.x, msg.y, msg.z)
-        #self._linear_target_data[2] = msg._connection_header['callerid']
-        self._linear_target_data[3] = self._node.get_clock().now()
+        if msg.mode == ControllerCommand.POSITION:
+            self._linear_target_data[0] = "Position:"
+            self._linear_target_data[1] = "({0:.2f}, {1:.2f}, {2:.2f})".format(msg.setpoint_vect.x, msg.setpoint_vect.y, msg.setpoint_vect.z)
+            #self._linear_target_data[2] = msg._connection_header['callerid']
+            self._linear_target_data[3] = self._node.get_clock().now()
+        elif msg.mode == ControllerCommand.VELOCITY:
+            self._linear_target_data[0] = "Lin Vel:"
+            self._linear_target_data[1] = "({0:.2f}, {1:.2f}, {2:.2f})".format(msg.setpoint_vect.x, msg.setpoint_vect.y, msg.setpoint_vect.z)
+            #self._linear_target_data[2] = msg._connection_header['callerid']
+            self._linear_target_data[3] = self._node.get_clock().now()
+        elif msg.mode == ControllerCommand.FEEDFORWARD:
+            self._linear_target_data[0] = "Linear:"
+            self._linear_target_data[1] = "Feed Forward"
+            #self._linear_target_data[2] = msg._connection_header['callerid']
+            self._linear_target_data[3] = self._node.get_clock().now()
+        elif msg.mode == ControllerCommand.DISABLED:
+            self._linear_target_data = ["Position:", "No Data", None, None]
+        else:
+            self._linear_target_data = ["Position:", "Invalid Cmd", None, None]
 
-    def _orientation_callback(self, msg):
+    def _orientation_callback(self, msg: ControllerCommand):
         #self._track_publisher(msg._connection_header['callerid'])
-        self._angular_target_data[0] = "Orientation:"
-        self._angular_target_data[1] = "({0:.2f}, {1:.2f}, {2:.2f}. {3:.2f})".format(msg.x, msg.y, msg.z, msg.w)
-        #self._angular_target_data[2] = msg._connection_header['callerid']
-        self._angular_target_data[3] = self._node.get_clock().now()
-
-    def _linear_velocity_callback(self, msg):
-        #self._track_publisher(msg._connection_header['callerid'])
-        self._linear_target_data[0] = "Lin Vel:"
-        self._linear_target_data[1] = "({0:.2f}, {1:.2f}, {2:.2f})".format(msg.x, msg.y, msg.z)
-        #self._linear_target_data[2] = msg._connection_header['callerid']
-        self._linear_target_data[3] = self._node.get_clock().now()
-
-    def _angular_velocity_callback(self, msg):
-        #self._track_publisher(msg._connection_header['callerid'])
-        self._angular_target_data[0] = "Ang Vel:"
-        self._angular_target_data[1] = "({0:.2f}, {1:.2f}, {2:.2f})".format(msg.x, msg.y, msg.z)
-        #self._angular_target_data[2] = msg._connection_header['callerid']
-        self._angular_target_data[3] = self._node.get_clock().now()
-
-    def _off_callback(self, msg):
-        self._linear_target_data = ["Position:", "No Data", None, None]
-        self._angular_target_data = ["Orientation:", "No Data", None, None]
+        if msg.mode == ControllerCommand.POSITION:
+            self._angular_target_data[0] = "Orientation:"
+            self._angular_target_data[1] = "({0:.2f}, {1:.2f}, {2:.2f}. {3:.2f})".format(msg.setpoint_quat.x, msg.setpoint_quat.y, msg.setpoint_quat.z, msg.setpoint_quat.w)
+            #self._angular_target_data[2] = msg._connection_header['callerid']
+            self._angular_target_data[3] = self._node.get_clock().now()
+        elif msg.mode == ControllerCommand.VELOCITY:
+            self._angular_target_data[0] = "Ang Vel:"
+            self._angular_target_data[1] = "({0:.2f}, {1:.2f}, {2:.2f})".format(msg.setpoint_vect.x, msg.setpoint_vect.y, msg.setpoint_vect.z)
+            #self._angular_target_data[2] = msg._connection_header['callerid']
+            self._angular_target_data[3] = self._node.get_clock().now()
+        elif msg.mode == ControllerCommand.FEEDFORWARD:
+            self._angular_target_data[0] = "Angular:"
+            self._angular_target_data[1] = "Feed Forward"
+            #self._linear_target_data[2] = msg._connection_header['callerid']
+            self._angular_target_data[3] = self._node.get_clock().now()
+        elif msg.mode == ControllerCommand.DISABLED:
+            self._angular_target_data = ["Orientation:", "No Data", None, None]
+        else:
+            self._angular_target_data = ["Orientation:", "Invalid", None, None]
 
     def _steady_callback(self, msg):
         self.steady_light_data = msg.data
@@ -561,12 +566,23 @@ class ControllersWidget(QWidget):
 
     @Slot()
     def _publish_position_callback(self):
-        self._position_pub.publish(Vector3(x=self._position_x.value(), y=self._position_y.value(), z=self._position_z.value()))
-        self._orientation_pub.publish(self._orientation_controls_manager.get_orientation())
+        linear_cmd = ControllerCommand()
+        linear_cmd.mode = ControllerCommand.POSITION
+        linear_cmd.setpoint_vect = Vector3(x=self._position_x.value(), y=self._position_y.value(), z=self._position_z.value())
+
+        angular_cmd = ControllerCommand()
+        angular_cmd.mode = ControllerCommand.POSITION
+        angular_cmd.setpoint_quat = self._orientation_controls_manager.get_orientation()
+
+        self._position_pub.publish(linear_cmd)
+        self._orientation_pub.publish(angular_cmd)
     
     @Slot()
     def _stop_controller_callback(self):
-        self._off_pub.publish(Empty())
+        off_cmd = ControllerCommand()
+        off_cmd.mode = ControllerCommand.DISABLED
+        self._position_pub.publish(off_cmd)
+        self._orientation_pub.publish(off_cmd)
 
     ########################################
     # Lifetime Management
@@ -606,7 +622,7 @@ class ControllersWidget(QWidget):
         self._load_current_position.setEnabled(self.last_odom_message is not None)
         self._load_current_orientation.setEnabled(self.last_odom_message is not None)
         self._publish_position.setEnabled((self._position_pub.get_subscription_count() > 1) and (self._orientation_pub.get_subscription_count() > 1))
-        self._stop_controller.setEnabled(self._off_pub.get_subscription_count() > 1)
+        self._stop_controller.setEnabled((self._position_pub.get_subscription_count()) > 1 or (self._orientation_pub.get_subscription_count() > 1))
 
         kill_publisher_available = self._software_kill_pub.get_subscription_count() > 0
         self._software_kill.setEnabled(kill_publisher_available)
