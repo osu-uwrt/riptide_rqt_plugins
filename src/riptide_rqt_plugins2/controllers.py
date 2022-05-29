@@ -386,14 +386,14 @@ class ControllersWidget(QWidget):
     ########################################
 
     def _init_topics(self):
-        self._position_pub = self._node.create_publisher(ControllerCommand, self.namespace + "/controller/position", qos_profile_system_default)
-        self._orientation_pub = self._node.create_publisher(ControllerCommand, self.namespace + "/controller/orientation", qos_profile_system_default)
+        self._position_pub = self._node.create_publisher(ControllerCommand, self.namespace + "/controller/linear", qos_profile_system_default)
+        self._orientation_pub = self._node.create_publisher(ControllerCommand, self.namespace + "/controller/angular", qos_profile_system_default)
 
         self._software_kill_pub = self._node.create_publisher(KillSwitchReport, self.namespace + "/control/software_kill", qos_profile_sensor_data)
 
         self._odom_sub = self._node.create_subscription(Odometry, self.namespace + "/odometry/filtered", self._odom_callback, 1)
-        self._position_sub = self._node.create_subscription(ControllerCommand, self.namespace + "/controller/position", self._position_callback, qos_profile_system_default)
-        self._orientation_sub = self._node.create_subscription(ControllerCommand, self.namespace + "/controller/orientation", self._orientation_callback, qos_profile_system_default)
+        self._position_sub = self._node.create_subscription(ControllerCommand, self.namespace + "/controller/linear", self._linear_callback, qos_profile_system_default)
+        self._orientation_sub = self._node.create_subscription(ControllerCommand, self.namespace + "/controller/angular", self._angular_callback, qos_profile_system_default)
         self._steady_sub = self._node.create_subscription(Bool, self.namespace + "/controller/steady", self._steady_callback, qos_profile_system_default)
         self._kill_switch_sub = self._node.create_subscription(RobotState, self.namespace + "/state/robot", self._kill_switch_callback, qos_profile_sensor_data)
 
@@ -439,7 +439,7 @@ class ControllersWidget(QWidget):
             self._controller_publish_history[0].append(node)
             self._controller_publish_history[1].append(current_time)
 
-    def _position_callback(self, msg: ControllerCommand):
+    def _linear_callback(self, msg: ControllerCommand):
         #self._track_publisher(msg._connection_header['callerid'])
         if msg.mode == ControllerCommand.POSITION:
             self._linear_target_data[0] = "Position:"
@@ -461,7 +461,7 @@ class ControllersWidget(QWidget):
         else:
             self._linear_target_data = ["Position:", "Invalid Cmd", None, None]
 
-    def _orientation_callback(self, msg: ControllerCommand):
+    def _angular_callback(self, msg: ControllerCommand):
         #self._track_publisher(msg._connection_header['callerid'])
         if msg.mode == ControllerCommand.POSITION:
             self._angular_target_data[0] = "Orientation:"
