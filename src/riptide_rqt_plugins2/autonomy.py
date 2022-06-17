@@ -1,6 +1,5 @@
 import os
-import rospy
-import rospkg
+from ament_index_python.packages import get_package_share_directory
 
 from qt_gui.plugin import Plugin
 from python_qt_binding import loadUi
@@ -9,27 +8,31 @@ from python_qt_binding.QtCore import QTimer, Slot
 
 from .task_action_widget import TaskActionWidget
 
+package_share_dir = get_package_share_directory('riptide_rqt_plugins2')
 class AutonomyWidget(QWidget):
-    ui_file = os.path.join(rospkg.RosPack().get_path('riptide_rqt_plugins'), 'resource', 'AutonomyPlugin.ui')
-    task_action_listener_topic = "task_action_listener"
+    task_action_listener_topic = "autonomy_task_starter"
 
     namespace = ""
 
     stopping = False
 
-    def __init__(self):
+    def __init__(self, node):
         super(AutonomyWidget, self).__init__()
+        self._node = node
     
         # Load UI
+        self.ui_file = os.path.join(package_share_dir, 'resource', 'AutonomyPlugin.ui')
         loadUi(self.ui_file, self)
         self.setObjectName('AutonomyPluginUi')
         
         # Configure all actions to be used
         self._actions_layout = self.findChild(QVBoxLayout, "actionsVerticalLayout")
         self._actions = []
-        self.add_action("Flatten Test", "flatten_test.launch")
-        self.add_action("Pitch Test", "pitch_test.launch")
-        self.add_action("Roll Test", "roll_test.launch")
+        self.add_action("Flatten Test", "big_flatten_tree.xml")
+        self.add_action("Gate Task", "big_gate_tree.xml")
+        self.add_action("Gate Task 2", "gate_tree_2.xml")
+        self.add_action("Buoy Task", "big_cutie_tree.xml")
+        self.add_action("Torpedo Task", "torpedo_tree.xml")
 
         # Namespace config
         self._namespace_text = self.findChild(QLineEdit, "namespaceEdit")
@@ -109,7 +112,7 @@ class AutonomyWidget(QWidget):
     # Actions Management
     ########################################
     def add_action(self, name, launch_file):
-        action = TaskActionWidget(name, self.namespace, self.task_action_listener_topic, launch_file, self._actions_layout)
+        action = TaskActionWidget(self._node, name, self.namespace, self.task_action_listener_topic, launch_file, self._actions_layout)
         self._actions.append(action)
 
     def update_namespace(self):
@@ -127,10 +130,12 @@ class AutonomyPlugin(Plugin):
 
     def __init__(self, context):
         super(AutonomyPlugin, self).__init__(context)
+        self._node = context.node
+
         # Give QObjects reasonable names
         self.setObjectName('AutonomyPlugin')
 
-        self._widget = AutonomyWidget()
+        self._widget = AutonomyWidget(self._node)
         self._widget.start()
         
         if context.serial_number() > 1:

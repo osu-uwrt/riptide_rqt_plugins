@@ -15,14 +15,14 @@
   </property>
   <layout class="QGridLayout" name="gridLayout_2">
    <item row="1" column="0">
-    <layout class="QVBoxLayout" name="verticalLayout">
+    <layout class="QVBoxLayout" name="primaryLayout">
      <property name="sizeConstraint">
       <enum>QLayout::SetDefaultConstraint</enum>
      </property>
      <item>
-      <layout class="QHBoxLayout" name="horizontalLayout_2">
+      <layout class="QHBoxLayout" name="namespaceLayout">
        <item>
-        <widget class="QLabel" name="label_11">
+        <widget class="QLabel" name="namespaceLabel">
          <property name="text">
           <string>Namespace:</string>
          </property>
@@ -45,7 +45,7 @@
       </layout>
      </item>
      <item>
-      <widget class="Line" name="line_2">
+      <widget class="Line" name="namespaceToTeleopGroupSeparator">
        <property name="orientation">
         <enum>Qt::Horizontal</enum>
        </property>
@@ -55,19 +55,19 @@
       <layout class="QVBoxLayout" name="teleopControlLayout"/>
      </item>
      <item>
-      <widget class="Line" name="line_3">
+      <widget class="Line" name="teleopToActionsGroupSeparator">
        <property name="orientation">
         <enum>Qt::Horizontal</enum>
        </property>
       </widget>
      </item>
      <item>
-      <layout class="QVBoxLayout" name="verticalLayout_3">
+      <layout class="QVBoxLayout" name="actionsGroupLayout">
        <property name="spacing">
         <number>0</number>
        </property>
        <item>
-        <widget class="QLabel" name="label_10">
+        <widget class="QLabel" name="actionsGroupLabel">
          <property name="text">
           <string>Actions:</string>
          </property>
@@ -79,7 +79,7 @@
       </layout>
      </item>
      <item>
-      <spacer name="verticalSpacer">
+      <spacer name="centerAlignmentSpacer">
        <property name="orientation">
         <enum>Qt::Vertical</enum>
        </property>
@@ -92,17 +92,24 @@
       </spacer>
      </item>
      <item>
-      <widget class="Line" name="line">
+      <widget class="Line" name="actionToControllerGroupSeparator">
        <property name="orientation">
         <enum>Qt::Horizontal</enum>
        </property>
       </widget>
      </item>
      <item>
-      <layout class="QGridLayout" name="gridLayout_4">
+      <layout class="QGridLayout" name="controllerGroupLayout">
        <property name="horizontalSpacing">
         <number>18</number>
        </property>
+       <item row="3" column="0">
+        <widget class="QLabel" name="label_2">
+         <property name="text">
+          <string>Orientation: </string>
+         </property>
+        </widget>
+       </item>
        <item row="2" column="2">
         <layout class="QHBoxLayout" name="horizontalLayout_3">
          <property name="spacing">
@@ -125,7 +132,7 @@
            </property>
            <property name="minimumSize">
             <size>
-             <width>50</width>
+             <width>55</width>
              <height>0</height>
             </size>
            </property>
@@ -151,20 +158,20 @@
          </item>
         </layout>
        </item>
-       <item row="3" column="2">
-        <layout class="QHBoxLayout" name="horizontalLayout_6">
+       <item row="3" column="5">
+        <layout class="QHBoxLayout" name="orientationWGroup">
          <property name="spacing">
           <number>3</number>
          </property>
          <item>
-          <widget class="QLabel" name="label_6">
+          <widget class="QLabel" name="orientationWLabel">
            <property name="text">
-            <string>X:</string>
+            <string>W:</string>
            </property>
           </widget>
          </item>
          <item>
-          <widget class="QDoubleSpinBox" name="orientationXValue">
+          <widget class="QDoubleSpinBox" name="orientationWValue">
            <property name="sizePolicy">
             <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
              <horstretch>0</horstretch>
@@ -173,7 +180,7 @@
            </property>
            <property name="minimumSize">
             <size>
-             <width>50</width>
+             <width>55</width>
              <height>0</height>
             </size>
            </property>
@@ -189,6 +196,9 @@
            <property name="buttonSymbols">
             <enum>QAbstractSpinBox::NoButtons</enum>
            </property>
+           <property name="decimals">
+            <number>3</number>
+           </property>
            <property name="minimum">
             <double>-1.000000000000000</double>
            </property>
@@ -196,18 +206,14 @@
             <double>1.000000000000000</double>
            </property>
            <property name="singleStep">
-            <double>0.100000000000000</double>
+            <double>0.050000000000000</double>
+           </property>
+           <property name="value">
+            <double>1.000000000000000</double>
            </property>
           </widget>
          </item>
         </layout>
-       </item>
-       <item row="3" column="0">
-        <widget class="QLabel" name="label_2">
-         <property name="text">
-          <string>Orientation: </string>
-         </property>
-        </widget>
        </item>
        <item row="3" column="3">
         <layout class="QHBoxLayout" name="horizontalLayout_7">
@@ -215,7 +221,7 @@
           <number>3</number>
          </property>
          <item>
-          <widget class="QLabel" name="label_7">
+          <widget class="QLabel" name="orientationYLabel">
            <property name="text">
             <string>Y:</string>
            </property>
@@ -231,7 +237,71 @@
            </property>
            <property name="minimumSize">
             <size>
+             <width>55</width>
+             <height>0</height>
+            </size>
+           </property>
+           <property name="maximumSize">
+            <size>
              <width>50</width>
+             <height>16777215</height>
+            </size>
+           </property>
+           <property name="focusPolicy">
+            <enum>Qt::StrongFocus</enum>
+           </property>
+           <property name="buttonSymbols">
+            <enum>QAbstractSpinBox::NoButtons</enum>
+           </property>
+           <property name="decimals">
+            <number>3</number>
+           </property>
+           <property name="minimum">
+            <double>-1.000000000000000</double>
+           </property>
+           <property name="maximum">
+            <double>1.000000000000000</double>
+           </property>
+           <property name="singleStep">
+            <double>0.050000000000000</double>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </item>
+       <item row="0" column="2" alignment="Qt::AlignHCenter">
+        <widget class="QLabel" name="steadyLabel">
+         <property name="styleSheet">
+          <string notr="true">QLabel{ color: rgb(186, 189, 182) }</string>
+         </property>
+         <property name="text">
+          <string>Steady</string>
+         </property>
+        </widget>
+       </item>
+       <item row="2" column="3">
+        <layout class="QHBoxLayout" name="horizontalLayout_4">
+         <property name="spacing">
+          <number>3</number>
+         </property>
+         <item>
+          <widget class="QLabel" name="label_4">
+           <property name="text">
+            <string>Y:</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QDoubleSpinBox" name="positionYValue">
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+             <horstretch>0</horstretch>
+             <verstretch>0</verstretch>
+            </sizepolicy>
+           </property>
+           <property name="minimumSize">
+            <size>
+             <width>55</width>
              <height>0</height>
             </size>
            </property>
@@ -248,17 +318,92 @@
             <enum>QAbstractSpinBox::NoButtons</enum>
            </property>
            <property name="minimum">
+            <double>-99.000000000000000</double>
+           </property>
+           <property name="singleStep">
+            <double>0.500000000000000</double>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </item>
+       <item row="0" column="0">
+        <widget class="QLabel" name="label_14">
+         <property name="text">
+          <string>Status:</string>
+         </property>
+        </widget>
+       </item>
+       <item row="3" column="6">
+        <widget class="QPushButton" name="loadCurrentOrientation">
+         <property name="text">
+          <string>Current</string>
+         </property>
+        </widget>
+       </item>
+       <item row="3" column="4">
+        <layout class="QHBoxLayout" name="horizontalLayout_8">
+         <property name="spacing">
+          <number>3</number>
+         </property>
+         <item>
+          <widget class="QLabel" name="orientationZLabel">
+           <property name="text">
+            <string>Z:</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QDoubleSpinBox" name="orientationZValue">
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+             <horstretch>0</horstretch>
+             <verstretch>0</verstretch>
+            </sizepolicy>
+           </property>
+           <property name="minimumSize">
+            <size>
+             <width>55</width>
+             <height>0</height>
+            </size>
+           </property>
+           <property name="maximumSize">
+            <size>
+             <width>50</width>
+             <height>16777215</height>
+            </size>
+           </property>
+           <property name="focusPolicy">
+            <enum>Qt::StrongFocus</enum>
+           </property>
+           <property name="buttonSymbols">
+            <enum>QAbstractSpinBox::NoButtons</enum>
+           </property>
+           <property name="decimals">
+            <number>3</number>
+           </property>
+           <property name="minimum">
             <double>-1.000000000000000</double>
            </property>
            <property name="maximum">
             <double>1.000000000000000</double>
            </property>
            <property name="singleStep">
-            <double>0.100000000000000</double>
+            <double>0.050000000000000</double>
            </property>
           </widget>
          </item>
         </layout>
+       </item>
+       <item row="0" column="3" colspan="2">
+        <widget class="QLabel" name="conflictingPublisherLabel">
+         <property name="styleSheet">
+          <string notr="true">QLabel{ color: rgb(186, 189, 182) }</string>
+         </property>
+         <property name="text">
+          <string>Conflicting Publishers</string>
+         </property>
+        </widget>
        </item>
        <item row="1" column="2" colspan="6">
         <layout class="QGridLayout" name="gridLayout">
@@ -348,22 +493,79 @@
          </item>
         </layout>
        </item>
-       <item row="0" column="0">
-        <widget class="QLabel" name="label_14">
+       <item row="2" column="7">
+        <spacer name="horizontalSpacer_2">
+         <property name="orientation">
+          <enum>Qt::Horizontal</enum>
+         </property>
+         <property name="sizeHint" stdset="0">
+          <size>
+           <width>40</width>
+           <height>20</height>
+          </size>
+         </property>
+        </spacer>
+       </item>
+       <item row="2" column="0">
+        <widget class="QLabel" name="label">
          <property name="text">
-          <string>Status:</string>
+          <string>Position:</string>
          </property>
         </widget>
        </item>
-       <item row="0" column="2" alignment="Qt::AlignHCenter">
-        <widget class="QLabel" name="steadyLabel">
-         <property name="styleSheet">
-          <string notr="true">QLabel{ color: rgb(186, 189, 182) }</string>
+       <item row="3" column="2">
+        <layout class="QHBoxLayout" name="horizontalLayout_6">
+         <property name="spacing">
+          <number>3</number>
          </property>
-         <property name="text">
-          <string>Steady</string>
-         </property>
-        </widget>
+         <item>
+          <widget class="QLabel" name="orientationXLabel">
+           <property name="text">
+            <string>X:</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QDoubleSpinBox" name="orientationXValue">
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+             <horstretch>0</horstretch>
+             <verstretch>0</verstretch>
+            </sizepolicy>
+           </property>
+           <property name="minimumSize">
+            <size>
+             <width>55</width>
+             <height>0</height>
+            </size>
+           </property>
+           <property name="maximumSize">
+            <size>
+             <width>50</width>
+             <height>16777215</height>
+            </size>
+           </property>
+           <property name="focusPolicy">
+            <enum>Qt::StrongFocus</enum>
+           </property>
+           <property name="buttonSymbols">
+            <enum>QAbstractSpinBox::NoButtons</enum>
+           </property>
+           <property name="decimals">
+            <number>3</number>
+           </property>
+           <property name="minimum">
+            <double>-1.000000000000000</double>
+           </property>
+           <property name="maximum">
+            <double>1.000000000000000</double>
+           </property>
+           <property name="singleStep">
+            <double>0.050000000000000</double>
+           </property>
+          </widget>
+         </item>
+        </layout>
        </item>
        <item row="2" column="4">
         <layout class="QHBoxLayout" name="horizontalLayout_5">
@@ -387,7 +589,7 @@
            </property>
            <property name="minimumSize">
             <size>
-             <width>50</width>
+             <width>55</width>
              <height>0</height>
             </size>
            </property>
@@ -416,124 +618,12 @@
          </item>
         </layout>
        </item>
-       <item row="2" column="0">
-        <widget class="QLabel" name="label">
+       <item row="2" column="6">
+        <widget class="QPushButton" name="loadCurrentPosition">
          <property name="text">
-          <string>Position:</string>
+          <string>Current</string>
          </property>
         </widget>
-       </item>
-       <item row="3" column="4">
-        <layout class="QHBoxLayout" name="horizontalLayout_8">
-         <property name="spacing">
-          <number>3</number>
-         </property>
-         <item>
-          <widget class="QLabel" name="label_8">
-           <property name="text">
-            <string>Z:</string>
-           </property>
-          </widget>
-         </item>
-         <item>
-          <widget class="QDoubleSpinBox" name="orientationZValue">
-           <property name="sizePolicy">
-            <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
-             <horstretch>0</horstretch>
-             <verstretch>0</verstretch>
-            </sizepolicy>
-           </property>
-           <property name="minimumSize">
-            <size>
-             <width>50</width>
-             <height>0</height>
-            </size>
-           </property>
-           <property name="maximumSize">
-            <size>
-             <width>50</width>
-             <height>16777215</height>
-            </size>
-           </property>
-           <property name="focusPolicy">
-            <enum>Qt::StrongFocus</enum>
-           </property>
-           <property name="buttonSymbols">
-            <enum>QAbstractSpinBox::NoButtons</enum>
-           </property>
-           <property name="minimum">
-            <double>-1.000000000000000</double>
-           </property>
-           <property name="maximum">
-            <double>1.000000000000000</double>
-           </property>
-           <property name="singleStep">
-            <double>0.100000000000000</double>
-           </property>
-          </widget>
-         </item>
-        </layout>
-       </item>
-       <item row="2" column="7">
-        <spacer name="horizontalSpacer_2">
-         <property name="orientation">
-          <enum>Qt::Horizontal</enum>
-         </property>
-         <property name="sizeHint" stdset="0">
-          <size>
-           <width>40</width>
-           <height>20</height>
-          </size>
-         </property>
-        </spacer>
-       </item>
-       <item row="2" column="3">
-        <layout class="QHBoxLayout" name="horizontalLayout_4">
-         <property name="spacing">
-          <number>3</number>
-         </property>
-         <item>
-          <widget class="QLabel" name="label_4">
-           <property name="text">
-            <string>Y:</string>
-           </property>
-          </widget>
-         </item>
-         <item>
-          <widget class="QDoubleSpinBox" name="positionYValue">
-           <property name="sizePolicy">
-            <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
-             <horstretch>0</horstretch>
-             <verstretch>0</verstretch>
-            </sizepolicy>
-           </property>
-           <property name="minimumSize">
-            <size>
-             <width>50</width>
-             <height>0</height>
-            </size>
-           </property>
-           <property name="maximumSize">
-            <size>
-             <width>50</width>
-             <height>16777215</height>
-            </size>
-           </property>
-           <property name="focusPolicy">
-            <enum>Qt::StrongFocus</enum>
-           </property>
-           <property name="buttonSymbols">
-            <enum>QAbstractSpinBox::NoButtons</enum>
-           </property>
-           <property name="minimum">
-            <double>-99.000000000000000</double>
-           </property>
-           <property name="singleStep">
-            <double>0.500000000000000</double>
-           </property>
-          </widget>
-         </item>
-        </layout>
        </item>
        <item row="1" column="0">
         <layout class="QHBoxLayout" name="horizontalLayout_13">
@@ -546,88 +636,38 @@
          </item>
         </layout>
        </item>
-       <item row="3" column="5">
-        <layout class="QHBoxLayout" name="horizontalLayout">
-         <property name="spacing">
-          <number>3</number>
-         </property>
+       <item row="4" column="2" colspan="3">
+        <layout class="QHBoxLayout" name="horizontalLayout_10">
          <item>
-          <widget class="QLabel" name="label_9">
+          <widget class="QRadioButton" name="quaternionModeRadio">
            <property name="text">
-            <string>W:</string>
+            <string>Quaternion</string>
+           </property>
+           <property name="checked">
+            <bool>true</bool>
            </property>
           </widget>
          </item>
          <item>
-          <widget class="QDoubleSpinBox" name="orientationWValue">
-           <property name="sizePolicy">
-            <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
-             <horstretch>0</horstretch>
-             <verstretch>0</verstretch>
-            </sizepolicy>
-           </property>
-           <property name="minimumSize">
-            <size>
-             <width>50</width>
-             <height>0</height>
-            </size>
-           </property>
-           <property name="maximumSize">
-            <size>
-             <width>50</width>
-             <height>16777215</height>
-            </size>
-           </property>
-           <property name="focusPolicy">
-            <enum>Qt::StrongFocus</enum>
-           </property>
-           <property name="buttonSymbols">
-            <enum>QAbstractSpinBox::NoButtons</enum>
-           </property>
-           <property name="minimum">
-            <double>-1.000000000000000</double>
-           </property>
-           <property name="maximum">
-            <double>1.000000000000000</double>
-           </property>
-           <property name="singleStep">
-            <double>0.100000000000000</double>
-           </property>
-           <property name="value">
-            <double>1.000000000000000</double>
+          <widget class="QRadioButton" name="eulerModeRadio">
+           <property name="text">
+            <string>Euler</string>
            </property>
           </widget>
          </item>
         </layout>
        </item>
-       <item row="0" column="3" colspan="2">
-        <widget class="QLabel" name="conflictingPublisherLabel">
-         <property name="styleSheet">
-          <string notr="true">QLabel{ color: rgb(186, 189, 182) }</string>
-         </property>
+       <item row="4" column="5">
+        <widget class="QPushButton" name="angleModeButton">
          <property name="text">
-          <string>Conflicting Publishers</string>
-         </property>
-        </widget>
-       </item>
-       <item row="2" column="6">
-        <widget class="QPushButton" name="loadCurrentPosition">
-         <property name="text">
-          <string>Current</string>
-         </property>
-        </widget>
-       </item>
-       <item row="3" column="6">
-        <widget class="QPushButton" name="loadCurrentOrientation">
-         <property name="text">
-          <string>Current</string>
+          <string>Radians</string>
          </property>
         </widget>
        </item>
       </layout>
      </item>
      <item>
-      <layout class="QHBoxLayout" name="horizontalLayout_9">
+      <layout class="QHBoxLayout" name="buttonGroupLayout">
        <item>
         <widget class="QPushButton" name="publishPositionButton">
          <property name="text">
@@ -646,6 +686,24 @@
         </widget>
        </item>
        <item>
+        <widget class="QPushButton" name="softwareKillEnableButton">
+         <property name="styleSheet">
+          <string notr="true">QPushButton{ color:rgb(32, 74, 135) }
+QPushButton:disabled{ color: rgb(114, 159, 207) }</string>
+         </property>
+         <property name="text">
+          <string>Enable Software Kill</string>
+         </property>
+         <property name="checkable">
+          <bool>true</bool>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </item>
+     <item>
+      <layout class="QHBoxLayout" name="softwareKillGroupLayout">
+       <item>
         <widget class="QPushButton" name="softwareKillButton">
          <property name="enabled">
           <bool>true</bool>
@@ -662,6 +720,35 @@ QPushButton:disabled{ color: rgb(209, 123, 123) }</string>
          </property>
          <property name="checked">
           <bool>false</bool>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QPushButton" name="softwareKillRequirePingButton">
+         <property name="text">
+          <string>Require Connection</string>
+         </property>
+         <property name="checkable">
+          <bool>true</bool>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QLabel" name="killedLabel">
+         <property name="sizePolicy">
+          <sizepolicy hsizetype="Maximum" vsizetype="Preferred">
+           <horstretch>0</horstretch>
+           <verstretch>0</verstretch>
+          </sizepolicy>
+         </property>
+         <property name="styleSheet">
+          <string notr="true">QLabel{ color: rgb(186, 189, 182) }</string>
+         </property>
+         <property name="text">
+          <string>Killed</string>
+         </property>
+         <property name="indent">
+          <number>5</number>
          </property>
         </widget>
        </item>
@@ -683,7 +770,6 @@ QPushButton:disabled{ color: rgb(209, 123, 123) }</string>
   <tabstop>orientationWValue</tabstop>
   <tabstop>publishPositionButton</tabstop>
   <tabstop>stopControllerButton</tabstop>
-  <tabstop>softwareKillButton</tabstop>
  </tabstops>
  <resources/>
  <connections>
